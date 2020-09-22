@@ -58,6 +58,71 @@ unsigned short csum(unsigned short *ptr,int nbytes)
     return(answer);
 }
 
+int receive_icmp(int s) {
+  // receive ICMP
+  int sockfd;
+  long icmp_received;
+  socklen_t clilen;
+  struct sockaddr_in cliaddr;
+  char buf[10000];
+  
+  fd_set readfds, masterfds;
+  struct timeval timeout;
+  
+  //Create a RAW socket (connection less)
+  sockfd = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
+  if (sockfd < 0){
+    perror("icmp socket:");
+    exit(1);
+  }
+  
+  // timeout
+  timeout.tv_sec = 10; // set timeout to 10s
+  timeout.tv_usec = 0;
+  
+  setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
+  
+  clilen = sizeof(struct sockaddr_in);
+  
+  //receive data from the client and store in 'buf'
+  printf("\nWAITING FOR ICMP DATA:\n");
+  
+  // blocking
+  icmp_received = recvfrom(s,buf, sizeof(buf),0,(struct sockaddr *)&cliaddr,&clilen);
+  
+  if (icmp_received > 0) {
+  
+    printf(" received %ld bytes\n", icmp_received);
+  
+    //extract IP header from the buffer 'buf'
+    struct ip *ip_hdr = (struct ip *) buf;
+  
+    printf("IP header is %d bytes.\n", ip_hdr->ip_hl * 4);
+  
+    // print IP addr
+    char *icmp_src;
+    printf("Source address: %s\n", inet_ntop(AF_INET, &ip_hdr->ip_src.s_addr, icmp_src, sizeof(ip_hdr->ip_src.s_addr)));
+  
+    //print all the values in the packet in Hex
+    //      for (i = 0; i < n; i++) {
+    //        printf("%02X%s", (uint8_t)buf[i], (i + 1)%16 ? " " : "\n");
+    //      }
+    //      printf("\n");
+    //extract ICMP  header part
+//    struct icmp *icmp_hdr = (struct icmp *)((char *)ip_hdr + (4 * ip_hdr->ip_hl));
+//
+//    printf("ICMP msgtype=%d, code=%d", icmp_hdr->icmp_type, icmp_hdr->icmp_code );
+
+    return 0;
+    
+  } else {
+    // timeout
+    return  -1;
+  }
+
+  
+}
+
 int main (void)
 {
     //Create a raw socket
@@ -155,7 +220,9 @@ int main (void)
     
     //loop
     int loop = 1;
-    while (loop < 2)
+    int MAX_HOP = 2;
+    
+    while (loop < MAX_HOP)
     {
       
       //Send the packet
@@ -169,54 +236,10 @@ int main (void)
           printf ("Packet Send. Length : %d \n" , iph->ip_len);
       }
       
-      // receive ICMP
-      int sockfd;
-      long icmp_received;
-      socklen_t clilen;
-      struct sockaddr_in cliaddr;
-      char buf[10000];
-      int i;
-  
-      //Create a RAW socket (connection less)
-      sockfd = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
-      if (sockfd < 0){
-        perror("sock:");
-        exit(1);
+      while (receive_icmp(s) != 0) {
+        printf("timeout!");
+        sendto (s, datagram, iph->ip_len ,    0, (struct sockaddr *) &sin, sizeof (sin));
       }
-      
-      clilen = sizeof(struct sockaddr_in);
-
-      //receive data from the client and store in 'buf'
-      printf("\nWAITING FOR ICMP DATA:\n");
-      
-      // blocking
-      icmp_received = recvfrom(sockfd,buf,10000,0,(struct sockaddr *)&cliaddr,&clilen);
-
-      printf(" received %ld bytes\n", icmp_received);
-  
-      //extract IP header from the buffer 'buf'
-      struct ip *ip_hdr = (struct ip *)buf;
-  
-      printf("IP header is %d bytes.\n", ip_hdr->ip_hl*4);
-      
-      // print IP addr
-//      struct in_addr icmp_src = ip_hdr->ip_src.s_addr;
-      printf("Source address: %u\n", ip_hdr->ip_src.s_addr);
-   
-      //print all the values in the packet in Hex
-//      for (i = 0; i < n; i++) {
-//        printf("%02X%s", (uint8_t)buf[i], (i + 1)%16 ? " " : "\n");
-//      }
-//      printf("\n");
-      //extract ICMP  header part
-      struct icmp *icmp_hdr = (struct icmp *)((char *)ip_hdr + (4 * ip_hdr->ip_hl));
-  
-      printf("ICMP msgtype=%d, code=%d", icmp_hdr->icmp_type, icmp_hdr->icmp_code );
-  
-      // Parse/decode the Hex output of packet data using ... www.rodneybeede.com/IP__IPv4_or_IPv6__packet_hex_dump_parser.html
-      
-      // print src ip
-  
   
       /*
        * Variables to update
