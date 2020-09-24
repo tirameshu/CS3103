@@ -243,29 +243,31 @@ int main (void)
         return 0;
         
       } else {
-//        printf("Received %ld bytes\n", received);
-        
+  
         //extract IP header from the buffer
         struct ip *ip_hdr = (struct ip *) recvBuff;
-        
-//        printf("IP header is %d bytes.\n", ip_hdr->ip_hl * 4);
-        
+  
         //print all the values in the packet in Hex
         // for (i = 0; i < received; i++) {
         //     printf("%02X%s", (uint8_t) recvBuff[i], (i + 1) % 16 ? " " : "\n");
         // }
         // printf("\n");
-        
+  
         //extract ICMP header part
-        struct icmp *icmp_hdr = (struct icmp *)((char *)ip_hdr + (4 * ip_hdr->ip_hl));
-        
-        // extract IP inside ICMP
-        struct ip *nested_ip_hdr = &icmp_hdr->icmp_dun.id_ip.idi_ip;
-        
-        printf("%d  %s\n", loop, inet_ntoa(cliaddr.sin_addr));
-        printf("ICMP msg type=%d, code=%d\n", icmp_hdr->icmp_type, icmp_hdr->icmp_code );
-        printf("nested IP protocol=%d\n", nested_ip_hdr->ip_p);
-//        printf("Source IP: %s\n", inet_ntoa(cliaddr.sin_addr));
+        struct icmp *icmp_hdr = (struct icmp *) ((char *) ip_hdr + (4 * ip_hdr->ip_hl));
+  
+        // extract IP inside ICMP, print only for TCP
+        int protocol = icmp_hdr->icmp_ip.ip_p;
+  
+        if (protocol == 6)
+        {
+          printf("%d  %s\n", loop, inet_ntoa(cliaddr.sin_addr));
+          printf("ICMP msg type=%d, code=%d\n", icmp_hdr->icmp_type, icmp_hdr->icmp_code );
+        }
+        else
+        {
+          printf("ICMP not for TCP\n");
+        }
         
         if (icmp_hdr->icmp_type == 3) {
           
