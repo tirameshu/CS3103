@@ -198,21 +198,12 @@ int main (void)
       exit(0);
   }
   
-  // TO RECEIVE PACKET
-  socklen_t len;
-  long received;
-  int sockfd;
-  struct sockaddr_in cliaddr;
-  int i;
-  char* current_addr;
-  char* intended_addr;
-  
   // loop until you reach the destination
   int loop = 1;
   
   while (loop < MAX_HOP)
   {
-//    printf("\nHop number :%d, packet TTL: %u\n", loop, iph->ip_ttl);
+    
     //send the packet
     if (sendto (s, datagram, iph->ip_len, 0, (struct sockaddr *) &sin, sizeof (sin)) < 0)
     {
@@ -220,9 +211,15 @@ int main (void)
     }
     else
     {
-//      printf("Packet for hop %d Sent. Length: %d \n", loop, iph->ip_len);
+      // to receive
+      struct sockaddr_in cliaddr;
       
-      //Create a RAW socket (connection less)
+      // ICMP check
+      socklen_t len;
+      long received;
+      int sockfd;
+      
+      // ICMP socket
       sockfd = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
       if (sockfd < 0){
         perror("ICMP Socket Error");
@@ -247,12 +244,6 @@ int main (void)
         //extract IP header from the buffer
         struct ip *ip_hdr = (struct ip *) recvBuff;
   
-        //print all the values in the packet in Hex
-        // for (i = 0; i < received; i++) {
-        //     printf("%02X%s", (uint8_t) recvBuff[i], (i + 1) % 16 ? " " : "\n");
-        // }
-        // printf("\n");
-  
         //extract ICMP header part
         struct icmp *icmp_hdr = (struct icmp *) ((char *) ip_hdr + (4 * ip_hdr->ip_hl));
   
@@ -269,6 +260,7 @@ int main (void)
           printf("ICMP not for TCP\n");
         }
         
+        // terminating condition
         if (icmp_hdr->icmp_type == 3) {
           
           // sanity check
