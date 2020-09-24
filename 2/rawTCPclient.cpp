@@ -62,208 +62,141 @@ unsigned short csum(unsigned short *ptr,int nbytes)
     return(answer);
 }
 
-int receive_icmp() {
-  // receive ICMP
-  int sockfd;
-  long icmp_received;
-  socklen_t clilen;
-  struct sockaddr_in cliaddr;
-  char buf[10000];
-  
-  fd_set readfds, masterfds;
-  struct timeval timeout;
-  
-  //Create a RAW socket (connection less)
-  sockfd = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
-  if (sockfd < 0){
-    perror("icmp socket:");
-    exit(1);
-  }
-  
-  // timeout
-  timeout.tv_sec = 2; // set timeout
-  timeout.tv_usec = 0;
-  
-  setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
-  
-  clilen = sizeof(struct sockaddr_in);
-  
-  //receive data from the client and store in 'buf'
-  printf("\nWAITING FOR ICMP DATA:\n");
-  
-  // blocking
-  icmp_received = recvfrom(sockfd,buf, sizeof(buf),0,(struct sockaddr *)&cliaddr,&clilen);
-  
-  if (icmp_received > 0) {
-  
-    printf(" received %ld bytes\n", icmp_received);
-  
-    //extract IP header from the buffer 'buf'
-    struct ip *ip_hdr = (struct ip *) buf;
-  
-    printf("IP header is %d bytes.\n", ip_hdr->ip_hl * 4);
-  
-    // print IP addr
-    char *icmp_src;
-    // printf("Source address: %s\n", inet_ntop(AF_INET, &ip_hdr->ip_src.s_addr, icmp_src, sizeof(ip_hdr->ip_src.s_addr)));
-	  printf("src ip: %s\n", inet_ntoa(cliaddr.sin_addr));
-  
-    //print all the values in the packet in Hex
-    //      for (i = 0; i < n; i++) {
-    //        printf("%02X%s", (uint8_t)buf[i], (i + 1)%16 ? " " : "\n");
-    //      }
-    //      printf("\n");
-    //extract ICMP  header part
-    struct icmp *icmp_hdr = (struct icmp *)((char *)ip_hdr + (4 * ip_hdr->ip_hl));
-//
-    printf("ICMP msg type = %d, code = %d\n\n", icmp_hdr->icmp_type, icmp_hdr->icmp_code );
-
-	// check for type 3
-    return 0;
-    
-  } else {
-    // timeout
-    return  -1;
-  }
-
-  
-}
-
 int main (void)
 {
-    //Create a raw socket
-    int s = socket (PF_INET, SOCK_RAW, IPPROTO_TCP);
-    
-    if(s == -1)
-    {
-        //socket creation failed, may be because of non-root privileges
-        perror("Failed to create socket");
-        exit(1);
-    }
-    
-    //Datagram to represent the packet
-    char datagram[4096] , source_ip[32] , *data , *pseudogram, recvBuff[4096];
-    
-    //zero out the packet buffer
-    memset (datagram, 0, 4096);
-    
-    //IP header
-    struct ip *iph = (struct ip *) datagram;
-    
-    //TCP header
-    struct tcphdr *tcph = (struct tcphdr *) (datagram + sizeof (struct ip));
-    struct sockaddr_in sin;
-    struct pseudo_header psh;
-    
-    //Data part
-    data = datagram + sizeof(struct ip) + sizeof(struct tcphdr);
-    strcpy(data , "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
   
-    //get system's IP address
-    struct ifreq ifr;
-    size_t if_name_len=strlen("enp0s3");
-    if (if_name_len<sizeof(ifr.ifr_name)) {
-      memcpy(ifr.ifr_name,"enp0s3",if_name_len);
-      ifr.ifr_name[if_name_len]=0;
-    } else {
-      perror("interface name is too long");
-    }
-    
-    int fd=socket(AF_INET,SOCK_DGRAM,0);
-    if (fd==-1) {
-      perror("Socket error:");
-    }
-    
-    if (ioctl(fd,SIOCGIFADDR,&ifr)==-1) {
-      int temp_errno=errno;
-      close(fd);
-      perror("IOCTL error");
-    }
+  int MAX_HOP = 30;
+  
+  //Create a raw socket
+  int s = socket (PF_INET, SOCK_RAW, IPPROTO_TCP);
+  
+  if(s == -1)
+  {
+      //socket creation failed, may be because of non-root privileges
+      perror("Failed to create socket");
+      exit(1);
+  }
+  
+  //Datagram to represent the packet
+  char datagram[4096] , source_ip[32] , *data , *pseudogram, recvBuff[4096];
+  
+  //zero out the packet buffer
+  memset (datagram, 0, 4096);
+  
+  //IP header
+  struct ip *iph = (struct ip *) datagram;
+  
+  //TCP header
+  struct tcphdr *tcph = (struct tcphdr *) (datagram + sizeof (struct ip));
+  struct sockaddr_in sin;
+  struct pseudo_header psh;
+  
+  //Data part
+  data = datagram + sizeof(struct ip) + sizeof(struct tcphdr);
+  strcpy(data , "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+
+  //get system's IP address
+  struct ifreq ifr;
+  size_t if_name_len=strlen("enp0s3");
+  if (if_name_len<sizeof(ifr.ifr_name)) {
+    memcpy(ifr.ifr_name,"enp0s3",if_name_len);
+    ifr.ifr_name[if_name_len]=0;
+  } else {
+    perror("interface name is too long");
+  }
+  
+  int fd=socket(AF_INET,SOCK_DGRAM,0);
+  if (fd==-1) {
+    perror("Socket error:");
+  }
+  
+  if (ioctl(fd,SIOCGIFADDR,&ifr)==-1) {
+    int temp_errno=errno;
     close(fd);
-    struct sockaddr_in* ipaddr = (struct sockaddr_in*)&ifr.ifr_addr;
-    printf("IP address: %s\n",inet_ntoa(ipaddr->sin_addr));
-    
-    strcpy(source_ip , inet_ntoa(ipaddr->sin_addr)); //your system's IP address
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons(80);
-    
-    // user enter dest
-    char hostname[256];
-    std::cout << "Please enter destination host name: ";
-    std::cin >> hostname;
-    
-    struct hostent* destination;
-    struct in_addr dest_addr;
-    destination = gethostbyname ( hostname );
-    if (destination == NULL) {
-      perror("Error, no such host");
-    } else {
-      if (*destination->h_addr_list) {
-        bcopy(*destination->h_addr_list++, (char *) &dest_addr, sizeof(dest_addr));
-        printf("Traceroute to %s [%s]:\n", hostname, inet_ntoa(dest_addr));
-      }
-    }
-    
-    sin.sin_addr.s_addr = inet_addr (inet_ntoa(dest_addr)); //user's input destination ip
+    perror("IOCTL error");
+  }
+  close(fd);
+  struct sockaddr_in* ipaddr = (struct sockaddr_in*)&ifr.ifr_addr;
+  printf("IP address: %s\n",inet_ntoa(ipaddr->sin_addr));
   
-
-    //Fill in the IP Header
-    
-    iph->ip_hl = 5;
-    iph->ip_v = 4;
-    iph->ip_tos = 0;
-    iph->ip_len = sizeof (struct ip) + sizeof (struct tcphdr) + strlen(data);
-    iph->ip_id = htons (12345);    //Id of this packet
-    iph->ip_off = 0;
-    iph->ip_ttl = 1;
-    iph->ip_p = IPPROTO_TCP;
-    iph->ip_sum = 0;        //Set to 0 before calculating checksum
-    iph->ip_src.s_addr = inet_addr ( source_ip );    //Spoof the source ip address
-    iph->ip_dst.s_addr = sin.sin_addr.s_addr;
-   
-    //Ip checksum
-    iph->ip_sum = csum ((unsigned short *) datagram, iph->ip_len);
-    
-    //TCP Header
-    tcph->th_sport = htons (1234);
-    tcph->th_dport = htons (38492);
-    tcph->th_seq = htonl(0);
-    tcph->th_ack = 0;  //first SYN packet will not have ACK
-    tcph->th_off = 5;    //tcp header size
-    // tcph->th_off = sizeof(struct tcphdr)/4; /* data position in the packet */
-    tcph->th_flags = TH_SYN; /* initial connection request */
-    //tcph->th_flags = TH_PUSH;
-    tcph->th_win = htons (5840);    /* maximum allowed window size */
-    tcph->th_sum = 0;    //leave checksum 0 now, filled later by pseudo header
-    tcph->th_urp = 0;
-    
-   
-
-    
-    //Now the TCP checksum
-    psh.source_address = inet_addr( source_ip );
-    psh.dest_address = sin.sin_addr.s_addr;
-    psh.placeholder = 0;
-    psh.protocol = IPPROTO_TCP;
-    psh.tcp_length = htons(sizeof(struct tcphdr) + strlen(data) );
-    
-    int psize = sizeof(struct pseudo_header) + sizeof(struct tcphdr) + strlen(data);
-    pseudogram = (char*) malloc(psize);
-    
-    memcpy(pseudogram , (char*) &psh , sizeof (struct pseudo_header));
-    memcpy(pseudogram + sizeof(struct pseudo_header) , tcph , sizeof(struct tcphdr) + strlen(data));
-    
-    tcph->th_sum = csum( (unsigned short*) pseudogram , psize);
-    
-    //IP_HDRINCL to tell the kernel that headers are included in the packet
-    int one = 1;
-    const int *val = &one;
-    
-    if (setsockopt (s, IPPROTO_IP, IP_HDRINCL, val, sizeof (one)) < 0)
-    {
-        perror("Error setting IP_HDRINCL");
-        exit(0);
+  strcpy(source_ip , inet_ntoa(ipaddr->sin_addr)); //your system's IP address
+  sin.sin_family = AF_INET;
+  sin.sin_port = htons(80);
+  
+  // user enter dest
+  char hostname[256];
+  std::cout << "Please enter destination host name: ";
+  std::cin >> hostname;
+  
+  struct hostent* destination;
+  struct in_addr dest_addr;
+  destination = gethostbyname ( hostname );
+  if (destination == NULL) {
+    perror("Error, no such host");
+  } else {
+    if (*destination->h_addr_list) {
+      bcopy(*destination->h_addr_list++, (char *) &dest_addr, sizeof(dest_addr));
+      printf("Traceroute to %s [%s], %d hops max:\n", hostname, inet_ntoa(dest_addr), MAX_HOP);
     }
+  }
+  
+  sin.sin_addr.s_addr = inet_addr (inet_ntoa(dest_addr)); //user's input destination ip
+
+
+  //Fill in the IP Header
+  
+  iph->ip_hl = 5;
+  iph->ip_v = 4;
+  iph->ip_tos = 0;
+  iph->ip_len = sizeof (struct ip) + sizeof (struct tcphdr) + strlen(data);
+  iph->ip_id = htons (12345);    //Id of this packet
+  iph->ip_off = 0;
+  iph->ip_ttl = 1;
+  iph->ip_p = IPPROTO_TCP;
+  iph->ip_sum = 0;        //Set to 0 before calculating checksum
+  iph->ip_src.s_addr = inet_addr ( source_ip );    //Spoof the source ip address
+  iph->ip_dst.s_addr = sin.sin_addr.s_addr;
+ 
+  //Ip checksum
+  iph->ip_sum = csum ((unsigned short *) datagram, iph->ip_len);
+  
+  //TCP Header
+  tcph->th_sport = htons (1234);
+  tcph->th_dport = htons (65535);
+  tcph->th_seq = htonl(0);
+  tcph->th_ack = 0;  //first SYN packet will not have ACK
+  tcph->th_off = 5;    //tcp header size
+  // tcph->th_off = sizeof(struct tcphdr)/4; /* data position in the packet */
+  tcph->th_flags = TH_SYN; /* initial connection request */
+  //tcph->th_flags = TH_PUSH;
+  tcph->th_win = htons (5840);    /* maximum allowed window size */
+  tcph->th_sum = 0;    //leave checksum 0 now, filled later by pseudo header
+  tcph->th_urp = 0;
+  
+  //Now the TCP checksum
+  psh.source_address = inet_addr( source_ip );
+  psh.dest_address = sin.sin_addr.s_addr;
+  psh.placeholder = 0;
+  psh.protocol = IPPROTO_TCP;
+  psh.tcp_length = htons(sizeof(struct tcphdr) + strlen(data) );
+  
+  int psize = sizeof(struct pseudo_header) + sizeof(struct tcphdr) + strlen(data);
+  pseudogram = (char*) malloc(psize);
+  
+  memcpy(pseudogram , (char*) &psh , sizeof (struct pseudo_header));
+  memcpy(pseudogram + sizeof(struct pseudo_header) , tcph , sizeof(struct tcphdr) + strlen(data));
+  
+  tcph->th_sum = csum( (unsigned short*) pseudogram , psize);
+  
+  //IP_HDRINCL to tell the kernel that headers are included in the packet
+  int one = 1;
+  const int *val = &one;
+  
+  if (setsockopt (s, IPPROTO_IP, IP_HDRINCL, val, sizeof (one)) < 0)
+  {
+      perror("Error setting IP_HDRINCL");
+      exit(0);
+  }
   
   // TO RECEIVE PACKET
   socklen_t len;
@@ -276,14 +209,10 @@ int main (void)
   
   // loop until you reach the destination
   int loop = 1;
-  int MAX_HOP = 30;
   
-  // printf("aim: %s\n", inet_ntoa(dest_addr));
-  // printf("%s\n", inet_ntoa(cliaddr.sin_addr));
-  // printf("%d\n", strcmp((char*) inet_ntoa(cliaddr.sin_addr), (char*) inet_ntoa(dest_addr)));
   while (loop < MAX_HOP)
   {
-    printf("\nTTL: %u\n", iph->ip_ttl);
+//    printf("\nHop number :%d, packet TTL: %u\n", loop, iph->ip_ttl);
     //send the packet
     if (sendto (s, datagram, iph->ip_len, 0, (struct sockaddr *) &sin, sizeof (sin)) < 0)
     {
@@ -291,7 +220,7 @@ int main (void)
     }
     else
     {
-      printf("Packet Sent. Length: %d \n" , iph->ip_len);
+//      printf("Packet for hop %d Sent. Length: %d \n", loop, iph->ip_len);
       
       //Create a RAW socket (connection less)
       sockfd = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
@@ -311,13 +240,15 @@ int main (void)
       
       if (received < 0) {
         perror("Recv Timeout");
+        return 0;
+        
       } else {
-        printf("Received %ld bytes\n", received);
+//        printf("Received %ld bytes\n", received);
         
         //extract IP header from the buffer
         struct ip *ip_hdr = (struct ip *) recvBuff;
         
-        printf("IP header is %d bytes.\n", ip_hdr->ip_hl * 4);
+//        printf("IP header is %d bytes.\n", ip_hdr->ip_hl * 4);
         
         //print all the values in the packet in Hex
         // for (i = 0; i < received; i++) {
@@ -328,11 +259,21 @@ int main (void)
         //extract ICMP header part
         struct icmp *icmp_hdr = (struct icmp *)((char *)ip_hdr + (4 * ip_hdr->ip_hl));
         
-        printf("ICMP msg type=%d, code=%d\n", icmp_hdr->icmp_type, icmp_hdr->icmp_code );
-        printf("Source IP: %s\n", inet_ntoa(cliaddr.sin_addr));
+        // extract IP inside ICMP
+        struct ip *nested_ip_hdr = &icmp_hdr->icmp_dun.id_ip.idi_ip;
         
-        if (cliaddr.sin_addr.s_addr == dest_addr.s_addr) {
-          printf("Reached!\n");
+        printf("%d  %s\n", loop, inet_ntoa(cliaddr.sin_addr));
+        printf("ICMP msg type=%d, code=%d\n", icmp_hdr->icmp_type, icmp_hdr->icmp_code );
+        printf("nested IP protocol=%d\n", nested_ip_hdr->ip_p);
+//        printf("Source IP: %s\n", inet_ntoa(cliaddr.sin_addr));
+        
+        if (icmp_hdr->icmp_type == 3) {
+          
+          // sanity check
+          if (cliaddr.sin_addr.s_addr == dest_addr.s_addr) {
+            printf("Reached!\n");
+          }
+          
           break;
         }
         
@@ -340,7 +281,7 @@ int main (void)
       
     }
     
-    iph->ip_ttl += 1;
+    iph->ip_ttl++;
   
     iph->ip_sum = csum ((unsigned short *) datagram, iph->ip_len);
     loop++;
