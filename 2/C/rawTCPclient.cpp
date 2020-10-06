@@ -78,7 +78,7 @@ int main (void)
   }
   
   //Datagram to represent the packet
-  char datagram[4096] , source_ip[32] , *data , *pseudogram, recvBuff[4096];
+  char datagram[4096] , source_ip[32] , *data , *pseudogram, recvBuffIcmp[4096], recvBuffTcp[4096];
   
   //zero out the packet buffer
   memset (datagram, 0, 4096);
@@ -215,33 +215,85 @@ int main (void)
       bool icmp_received, tcp_rst_received;
       socklen_t len;
   
-      // ICMP check
-      long received;
+      // set timeout
+      struct timeval timeout;
+      timeout.tv_sec = 0;
+      timeout.tv_usec = 500000;
+  
+      // ICMP SETUP
+      long received_icmp;
       int sockfd;
   
-      // ICMP socket
       sockfd = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
       if (sockfd < 0) {
         perror("ICMP Socket Error");
         exit(1);
       }
   
-      // set timeout
-      struct timeval timeout;
-      timeout.tv_sec = 0;
-      timeout.tv_usec = 500000;
       setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
   
       len = sizeof(struct sockaddr_in);
-      received = recvfrom(sockfd, recvBuff, sizeof(recvBuff), 0, (struct sockaddr *) &cliaddr, &len);
   
-      if (received < 0) {
-        perror("Recv Timeout for ICMP");
-        icmp_received = false;
+      
+      
+      // TCP SETUP
+      long received_tcp;
+      int sockfd_tcp;
+  
+      sockfd_tcp = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
+      if (sockfd_tcp < 0)
+      {
+        perror("TCP Socket Error");
+        exit(1);
+      }
+  
+      setsockopt(sockfd_tcp, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+  
+      
+      // receiving for both
+      received_tcp = recvfrom(sockfd_tcp, recvBuffTcp, sizeof(recvBuffTcp), 0, (struct sockaddr *) &cliaddr, &len);
+      received_icmp = recvfrom(sockfd, recvBuffIcmp, sizeof(recvBuffIcmp), 0, (struct sockaddr *) &cliaddr, &len);
+      
+      if (received_icmp < 0)
+      {
+//        perror("Recv Timeout for ICMP");
         
-      } else {
+        if (received_tcp >= 0)
+        {
+          //extract IP header from the buffer
+          struct tcphdr *tcp_hdr_received = (struct tcphdr *) recvBuffTcp;
+  
+          // check reset flag
+          int flag = tcp_hdr_received->th_flags;
+          printf("tcp flag: %d\n", flag);
+  
+          // terminating conditions
+          if (cliaddr.sin_addr.s_addr == dest_addr.s_addr)
+          {
+            printf("Destination reached!\n");
+            if (flag == 4) // TH_RST
+            {
+              printf("TCP Reset detected! Terminating...\n");
+            }
+            else
+            {
+              printf("Terminating...\n"); // still terminate as long as dest reached.
+            }
+            break;
+          }
+          
+        }
+        else
+        {
+          // both not received
+          printf("Time  Out! Destination not reached.\n");
+          return 0;
+        }
+        
+      }
+      else {
         //extract IP header from the buffer
-        struct ip *ip_hdr = (struct ip *) recvBuff;
+        struct ip *ip_hdr = (struct ip *) recvBuffIcmp;
     
         //extract ICMP header part
         struct icmp *icmp_hdr = (struct icmp *) ((char *) ip_hdr + (4 * ip_hdr->ip_hl));
@@ -249,69 +301,75 @@ int main (void)
         // extract IP inside ICMP, print only for TCP
         int protocol = icmp_hdr->icmp_ip.ip_p;
     
-        if (protocol == 6) {
+        if (protocol == 6)
+        {
           printf("%d  %s\n", loop, inet_ntoa(cliaddr.sin_addr));
           printf("ICMP msg type=%d, code=%d\n", icmp_hdr->icmp_type, icmp_hdr->icmp_code);
-          icmp_received = true;
-        } else {
-          printf("ICMP not for TCP\n");
         }
-    
-        // terminating condition
-        if (icmp_hdr->icmp_type == 3) {
-      
-          // sanity check
-          if (cliaddr.sin_addr.s_addr == dest_addr.s_addr) {
-            printf("Reached!\n");
+  
+        // terminates if reached dest ip
+        if (cliaddr.sin_addr.s_addr == dest_addr.s_addr)
+        {
+          printf("Destination reached!\n");
+          
+          // check if port unreachable received
+          if (icmp_hdr->icmp_type == 3)
+          {
+            printf("Destination port unreachable! Terminating...\n");
           }
-      
+          else
+          {
+            printf("Terminating...\n");
+          }
           break;
         }
-    
+        
       }
   
-      // only check tcp_rst if icmp not received
-      if (!icmp_received) {
-    
-        // TCP
-        long received_tcp;
-        int sockfd_tcp;
-    
-        sockfd_tcp = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
-        if (sockfd_tcp < 0) {
-          perror("ICMP Socket Error");
-          exit(1);
-        }
-        
-        // set timeout
-        setsockopt(sockfd_tcp, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-    
-        received_tcp = recvfrom(sockfd_tcp, recvBuff, sizeof(recvBuff), 0, (struct sockaddr *) &cliaddr, &len);
-    
-        if (received_tcp < 0) {
-          perror("Recv Timeout for TCP as well");
-          return 0;
-        } else {
-          //extract IP header from the buffer
-          struct tcphdr *tcp_hdr_received = (struct tcphdr *) recvBuff;
-      
-          // check reset flag
-          int flag = tcp_hdr_received->th_flags;
-      
-          // terminating condition
-          if (flag == 4) // TH_RST
-          {
-            // sanity check
-            if (cliaddr.sin_addr.s_addr == dest_addr.s_addr) {
-              printf("Reached!\n");
-            }
-        
-            break;
-          }
-      
-        }
-    
-      }
+//      // only check tcp_rst if icmp not received
+//      if (!icmp_received) {
+//
+//        // TCP
+//        long received_tcp;
+//        int sockfd_tcp;
+//
+//        sockfd_tcp = socket(PF_INET, SOCK_RAW, IPPROTO_ICMP);
+//        if (sockfd_tcp < 0) {
+//          perror("ICMP Socket Error");
+//          exit(1);
+//        }
+//
+//        // set timeout
+//        setsockopt(sockfd_tcp, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+//
+//        received_tcp = recvfrom(sockfd_tcp, recvBuff, sizeof(recvBuff), 0, (struct sockaddr *) &cliaddr, &len);
+//
+//        if (received_tcp < 0) {
+//          perror("Recv Timeout for TCP as well");
+//          return 0;
+//        } else {
+//          //extract IP header from the buffer
+//          struct tcphdr *tcp_hdr_received = (struct tcphdr *) recvBuff;
+//
+//          // check reset flag
+//          int flag = tcp_hdr_received->th_flags;
+//          printf("tcp flag: %d\n", flag);
+//
+//          // terminating condition
+//          if (flag == 4) // TH_RST
+//          {
+//            // sanity check
+//            if (cliaddr.sin_addr.s_addr == dest_addr.s_addr)
+//            {
+//              printf("Reached!\n");
+//            }
+//
+//            break;
+//          }
+//
+//        }
+//
+//      }
   
       iph->ip_ttl++;
   
