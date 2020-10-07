@@ -3,21 +3,27 @@ Run this with
 python3 mailer_program.py [maildata.csv] [dept code]
 
 CSV file should contain header, and columns are to be in the format [email] [name] [department]
+
+Will prompt for login
+
+Assumes subject on first line of text supplied
 """
 
 import csv
 import sys
 import time
+import smtplib
+import ssl
 
-from smtplib import SMTP
+from getpass import getpass
+from socket import gaierror
 
 # save a hash of dept: {email: name}
 dept_roster = {}
 
-class InvalidDeptException(Exception):
-    def __init__(self):
-        self.msg = ("Invalid Department! Please try again.")
-        super(Exception, self).__init__(self.msg)
+# smtp server
+smtp_server = "smtp.gmail.com"
+port = 587
 
 def read_csv(csvfilename):
     """
@@ -32,67 +38,109 @@ def read_csv(csvfilename):
             rows.append(row)
     return rows
 
-def edit(to_send, name):
-    with open(to_send, "r+") as content:
-        pass
+def get_subject(to_send):
+    with open(to_send, "r") as content:
+        first_line = content.readline()
 
-# dept provided here is already verified to be valid
-def mail_to(dept, to_send):
-    if dept == "all":
-        for dept in dept_roster:
-            mail_to(dept)
-    else:
-        counter = 0
+        # sanity check
+        words = first_line.split(" ")
+        if "subject" in words[0].lower():
+            return " ".join(words[1:])
 
-        dept_emails = dept_roster[dept]
+def get_full_content_formatted(to_send, dept, rec_email):
+    with open(to_send, "r") as content:
+        body = content.read()
 
-        print("Mailing to department: " + dept)
+    body = "From: {}\nTo: {}\n" + body
 
-        for email in dept_emails:
-            # with SMTP(host) as smtp:  # smtp quits automatically
+    # format with name of recipient
+    receiver_name = dept_roster[dept][rec_email]
+    body = body.replace("$name$", receiver_name)
+    body = body.replace("$department$", dept)
 
-            name = dept_roster[dept][email]
+    return body
 
-            edited_to_send = edit(to_send, name)
+# Dept provided here is already verified to be valid
+# There is only one function to mail to specific dept only because
+# sending to all is just looping through all the depts
+# so this is done to prevent duplicate code
+def mail_to_dept(dept, to_send, sender_email, server):
+    counter = 0
 
-            print("Sending to " + name + "...")
+    dept_emails = dept_roster[dept]
 
-            counter += 1
+    print("Mailing to department: " + dept)
 
-        # send summary
-        end = time.time()
-        print(str(counter) + " mail(s) sent \n")
+    for rec_email in dept_emails:
+        receiver_name = dept_roster[dept][rec_email]
 
-def check_dept():
-    # keep looping until user gets it right
-    while True:
-        try:
-            dept = input("Please enter the department code: ").lower()
+        subject = get_subject(to_send)
+
+        # msg construction
+        msg = get_full_content_formatted(to_send, dept, rec_email)
+
+        print("Sending to " + receiver_name + ". Subject: " + subject)
+
+        server.sendmail(sender_email, rec_email, msg.format(sender_email, rec_email, msg).encode("utf-8"))
+
+        counter += 1
+
+    # send summary
+    print(str(counter) + " mail(s) sent to department: " + dept + "\n")
+
+def login_and_mail(dept):
+    sender_email = input("Sender login: email address ").strip()
+    sender_pw = getpass()
+
+    # login attempt
+    try:
+        # context = ssl.create_default_context()
+        with smtplib.SMTP(smtp_server, port) as server:
+            server.starttls()
+            server.login(sender_email, sender_pw)
+
+            print('Login successful!\n')
+
+            # only if login is successful do we continue with the mailing
+            to_send = input("Please provide the absolute address of your email text file: ").strip()
 
             start = time.time()
 
             if dept == "all":
-                to_send = input("Please provide the absolute address of your email text file: ")
-
                 print("\nMailing to all")
 
-                mail_to("all", to_send)
+                for dept in dept_roster:
+                    mail_to_dept(dept, to_send, sender_email, server)
 
                 print("Total time taken: " + '%.3f' % ((time.time() - start) * 10 ** 3) + "ms\n")
-                break
             else:
-                if dept in dept_roster:
-                    to_send = input("Please provide the absolute address of your email text file: ")
+                mail_to_dept(dept, to_send, sender_email, server)
 
-                    mail_to(dept, to_send)
+                print("Total time taken: " + '%.3f' % ((time.time() - start) * 10 ** 3) + "ms\n")
 
-                    print("Total time taken: " + '%.3f' % ((time.time() - start) * 10 ** 3) + "ms\n")
-                    break
-                else:
-                    raise InvalidDeptException
+    except (gaierror, ConnectionRefusedError):
+        print('Failed to connect to the server. Bad connection settings?')
+    except smtplib.SMTPServerDisconnected:
+        print('Failed to connect to the server. Wrong user/password?')
+    except smtplib.SMTPException as e:
+        print('SMTP error occurred: ' + str(e))
 
-        except InvalidDeptException as ex1:
-            print(ex1.msg)
+
+def check_dept():
+    # keep looping until user gets it right
+    valid = False
+    dept = ""
+
+    while not valid:
+        dept = input("Please enter the department code: ").lower().strip()
+
+        if dept != "all" and dept not in dept_roster: # invalid
+            print("Invalid department code!")
+            continue
+        else:
+            valid = True
+
+    login_and_mail(dept)
 
 maildata = sys.argv[1]
 # excess args ignored
@@ -104,9 +152,9 @@ maildata_entries = maildata_rows[1:]
 
 for entry in maildata_entries:
     email, name, dept = entry
-    dept = dept.lower() # case insensitive
+    dept = dept.strip().lower() # case insensitive
     if dept not in dept_roster:
-        dept_roster[dept] = {email: name}
+        dept_roster[dept] = {email.strip(): name.strip()}
     else:
         if email not in dept_roster[dept]:
             dept_roster[dept][email] = name
