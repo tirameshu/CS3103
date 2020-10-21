@@ -1,19 +1,21 @@
 """
 Run this with
-python3 mailer_program.py [maildata.csv] [dept code]
+python3 mailer_program.py [maildata.csv]
 
 CSV file should contain header, and columns are to be in the format [email] [name] [department]
 
-Will prompt for login
+Will prompt for login, where sender email and password should be provided.
+Will also prompt for absolute file path to email text file.
 
-Assumes subject on first line of text supplied
+Email text file format:
+-	Start with “Subject: …”
+-	Placeholders for variables such as name and department should be enclosed as such: $name$, $department$
 """
 
 import csv
 import sys
 import time
 import smtplib
-import ssl
 
 from getpass import getpass
 from socket import gaierror
@@ -60,10 +62,13 @@ def get_full_content_formatted(to_send, dept, rec_email):
 
     return body
 
-# Dept provided here is already verified to be valid
-# There is only one function to mail to specific dept only because
-# sending to all is just looping through all the depts
-# so this is done to prevent duplicate code
+"""
+Dept provided here is already verified to be valid.
+
+There is only one function to mail to a specific dept because
+sending to all is just looping through all the depts
+so this is done to prevent duplicate code
+"""
 def mail_to_dept(dept, to_send, sender_email, server):
     counter = 0
 
@@ -94,7 +99,6 @@ def login_and_mail(dept):
 
     # login attempt
     try:
-        # context = ssl.create_default_context()
         with smtplib.SMTP(smtp_server, port) as server:
             server.starttls()
             server.login(sender_email, sender_pw)
