@@ -21,15 +21,19 @@ def process_ports(output):
 def run():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         if s.connect_ex((HOST, PORT)) == 0:
+
             print("Connected with host!\n")
-            port_info = list_ports()
-            print("Port info...\n")
-            process_ports(port_info[:100]) # shorten first
-            instruction = s.recv(1024).decode(encoding='utf-8')
-            if instruction == "ports":
-                s.sendall(port_info.encode(encoding='utf-8'))
-                print("port info sended!\n")
-            else:
-                print("no instruction!\n")
+            while True:
+                port_info = list_ports()
+                print("Port info...\n")
+                process_ports(port_info[:100])  # for verification
+
+                # wait for instruction
+                instruction = s.recv(1024).decode(encoding='utf-8')
+                if instruction == "ports":
+                    s.sendall(port_info.encode(encoding='utf-8'))
+                    print("port info sent!\n")
+                else:
+                    print("no instruction!\n")
 
 run()
