@@ -1,30 +1,35 @@
 # scans local ports
 import socket
+import subprocess
 
 MAX_PORT = 65535
 
-def scan_ports():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(0.1)
+HOST = "127.0.0.1"
+PORT = 65432 # has to be hardcoded
 
-    # port = 80
+def list_ports():
+    cmd = "sudo lsof -i -P -n | grep -e LISTEN -e ESTABLISHED"
 
-    # code = s.connect_ex(("localhost", port))
-    # s.close()
+    output = subprocess.check_output(cmd, shell=True)
 
-    # if not code:
-    #     print("[+] port " + str(port))
-    # else:
-    #     print("[-] port " + str(port))
+    output = output.decode(encoding='utf-8')
+    return output
 
-    for port in range(1, MAX_PORT + 1):
-        code = s.connect_ex(("0.0.0.0", port))
+def process_ports(output):
+    print(output)
 
-        if code == 0 : # successful
-            print("[+] port " + str(port))
-        # else:
-        #     print("[-] port " + str(port))
+def run():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        if s.connect_ex((HOST, PORT)) == 0:
+            print("Connected with host!\n")
+            port_info = list_ports()
+            print("Port info...\n")
+            process_ports(port_info[:100]) # shorten first
+            instruction = s.recv(1024).decode(encoding='utf-8')
+            if instruction == "ports":
+                s.sendall(port_info.encode(encoding='utf-8'))
+                print("port info sended!\n")
+            else:
+                print("no instruction!\n")
 
-    s.close()
-
-scan_ports()
+run()
