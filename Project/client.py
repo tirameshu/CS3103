@@ -20,6 +20,7 @@ def process_ports(output):
 
 def run():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(10)
         if s.connect_ex((HOST, PORT)) == 0:
 
             print("Connected with host!\n")
