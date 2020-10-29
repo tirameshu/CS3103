@@ -7,7 +7,7 @@ HOST = "127.0.0.1"
 PORT = 65432
 
 def get_port_info(sock):
-    sock.settimeout(2)
+    sock.settimeout(2) # 2s to receive
     port_info = b""
     received = sock.recv(1024)
     try:
@@ -22,7 +22,9 @@ def get_port_info(sock):
 
     decoded_port_info = port_info.decode(encoding='utf-8')
 
-    print("port info received!\n")
+    print("Port info received!\n")
+
+    sock.settimeout(20)
 
     return decoded_port_info
 
@@ -59,7 +61,11 @@ def parse_port_info(lsof_info):
                 break
 
         if port != PORT:
-            open_apps.append(cmd)
+            if cmd not in open_apps:
+                open_apps.append(cmd)
+
+    print(open_apps)
+    return open_apps
 
 
 def run():
@@ -74,20 +80,19 @@ def run():
             print(addr)
             print("\n")
 
-            unauthorised_ports_open = False
-
             while True:
-                time.sleep(7) # check ports every 7s
+                client_soc.sendall(b'GET_PORT')
+                print("Requesting for port info\n")
 
-                if unauthorised_ports_open:
-                    client_soc.sendall(b'close ports')
-                    print("client has unauthorised ports open\n")
-                else:
-                    client_soc.sendall(b'ports')
-                    print("requesting for port info\n")
+                port_info = get_port_info(client_soc)
+                open_apps = parse_port_info(port_info)
 
-                port_info = get_port_info(client_soc)  # recurring, other processes may require separate port
-                parse_port_info(port_info)
+                if open_apps:
+                    byte_array = bytearray(", ".join(open_apps), encoding='utf-8')
+                    client_soc.sendall(b'CLOSE_PORTS:' + byte_array)
+                    print("Client has unauthorised ports open\n")
+
+                time.sleep(10) # not spam client with instructions
 
                 # quit option removed to prevent user from stopping the port checker
 
