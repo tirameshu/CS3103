@@ -32,10 +32,10 @@ def get_port_info(sock):
 def parse_port_info(lsof_info):
     if not lsof_info:
         return []
+
     split_port_info = re.split("\n", lsof_info) # split by \n first
     nested_list = list(map(lambda x: re.split("\s+", x), split_port_info)) # split by whitespace in general
-    nested_list = list(filter(lambda x: len(x) > 1, nested_list))
-    # print(nested_list)
+    nested_list = list(filter(lambda x: len(x) > 1, nested_list)) # filter out [""]
 
     """
     1) filter those involving MAC addresses, localhost, 127.0.0.1
