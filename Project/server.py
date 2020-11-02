@@ -175,7 +175,12 @@ def run():
                         time.sleep(10)  # not spam client with instructions
 
                         # quit option removed to prevent user from stopping the port checker
-            
+
+                # get port info from existing clients
+                for client_soc in clients:
+                    client_soc.sendall(b'GET_PORT')
+
+
             except KeyboardInterrupt:
                 break
 
