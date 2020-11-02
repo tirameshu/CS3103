@@ -1,6 +1,7 @@
 # scans local ports
 import socket
 import subprocess
+import time
 
 MAX_PORT = 65535
 
@@ -28,7 +29,10 @@ def run():
                     port_info = list_ports()
                     print("Fetching port info...\n")
 
-                    # send port info
+                    # send size of msg then port info
+                    s.sendall(str(len(port_info)).encode(encoding='utf-8'))
+                    print("sending msg of size " + str(len(port_info)))
+                    time.sleep(1)
                     s.sendall(port_info.encode(encoding='utf-8'))
                     print("Port info sent!\n")
 
