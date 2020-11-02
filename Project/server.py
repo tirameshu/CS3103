@@ -2,11 +2,12 @@ import select
 import socket
 import time
 import re
+import multiprocessing
 
 HOST = "127.0.0.1"
 PORT = 65432
 
-def get_port_info(sock):
+def get_port_info(sock, addr):
     sock.settimeout(2) # 2s to receive
     port_info = b""
     received = sock.recv(1024)
@@ -22,7 +23,7 @@ def get_port_info(sock):
 
     decoded_port_info = port_info.decode(encoding='utf-8')
 
-    print("Port info received!\n")
+    print(f"Port info received from {addr}!\n")
 
     sock.settimeout(20)
 
@@ -68,32 +69,38 @@ def parse_port_info(lsof_info):
     return open_apps
 
 
+def handleClient(client_soc, addr):
+    print("Connected by: ")
+    print(addr)
+    print("\n")
+
+    while True:
+        client_soc.sendall(b'GET_PORT')
+        print("Requesting for port info...\n")
+
+        port_info = get_port_info(client_soc, addr)
+        open_apps = parse_port_info(port_info)
+
+        if open_apps:
+            byte_array = bytearray(", ".join(open_apps), encoding='utf-8')
+            client_soc.sendall(b'CLOSE_PORTS:' + byte_array)
+            print("Client has unauthorised ports open\n")
+
+        time.sleep(10) # not spam client with instructions
+        # quit option removed to prevent user from stopping the port checker
+
 def run():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
 
-        client_soc, addr = s.accept()
+        # accept multiple clients
+        while True:
+            client_soc, addr = s.accept()
+            process = multiprocessing.Process(target=handleClient, args=(client_soc, addr))
+            process.daemon = True
+            process.start()
 
-        with client_soc:
-            print("Connected by: ")
-            print(addr)
-            print("\n")
-
-            while True:
-                client_soc.sendall(b'GET_PORT')
-                print("Requesting for port info\n")
-
-                port_info = get_port_info(client_soc)
-                open_apps = parse_port_info(port_info)
-
-                if open_apps:
-                    byte_array = bytearray(", ".join(open_apps), encoding='utf-8')
-                    client_soc.sendall(b'CLOSE_PORTS:' + byte_array)
-                    print("Client has unauthorised ports open\n")
-
-                time.sleep(10) # not spam client with instructions
-
-                # quit option removed to prevent user from stopping the port checker
+    s.close()
 
 run()
