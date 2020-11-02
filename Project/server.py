@@ -8,6 +8,7 @@ PORT = 65432
 
 HEADER_SIZE = 8
 
+student_count = 0
 clients = {}
 
 # returns msg received
@@ -115,51 +116,57 @@ def run():
 
         sockets_list = [server_socket]
         while True:
-            read_sockets, write_sockets, err_sockets = select.select(sockets_list, [], sockets_list)
+            try:
+                read_sockets, write_sockets, err_sockets = select.select(sockets_list, [], sockets_list)
 
-            for readable_socket in read_sockets:
-                if readable_socket == server_socket:
-                    # new connection received
-                    client_soc, addr = server_socket.accept()
+                for readable_socket in read_sockets:
+                    if readable_socket == server_socket:
+                        # new connection received
+                        client_soc, addr = server_socket.accept()
 
-                    # get student identifier
-                    print("Receiving username\n")
-                    user = receive_message(client_soc)
+                        # assign student a username
+                        global student_count
+                        user = str(student_count)
+                        client_soc.sendall(b'ASSIGNED_NAME:' + bytearray(user, encoding='utf-8'))
 
-                    if not user: # empty msg received, handled in prev function
-                        continue
+                        student_count += 1
 
-                    sockets_list.append(client_soc)
-                    clients[client_soc] = user
-                    print(f"\nNew connection by: {user}")
+                        sockets_list.append(client_soc)
+                        clients[client_soc] = user
+                        print(f"\nNew connection by: Student {user} from {addr}")
 
-                    # request for port info
-                    client_soc.sendall(b'GET_PORT')
-                    print("Requesting for port info\n")
+                        # request for port info
+                        client_soc.sendall(b'GET_PORT')
+                        print("Requesting for port info\n")
 
-                # receiving from existing connections
-                else:
+                    # receiving from existing connections
+                    else:
 
-                    port_info = receive_message(readable_socket)
+                        port_info = receive_message(readable_socket)
 
-                    if not port_info: # nth received, likely student disconnected
-                        print(f"No port info received: student {clients[readable_socket]} disconnected.\n")
+                        if not port_info: # nth received, likely student disconnected
+                            print(f"No port info received: Student {clients[readable_socket]} disconnected.\n")
 
-                        # cleanup
-                        sockets_list.remove(readable_socket)
-                        del clients[readable_socket]
+                            # cleanup
+                            sockets_list.remove(readable_socket)
+                            del clients[readable_socket]
 
-                        continue
+                            continue
 
-                    open_apps = parse_port_info(port_info)
+                        open_apps = parse_port_info(port_info)
 
-                    if open_apps:
-                        byte_array = bytearray(", ".join(open_apps), encoding='utf-8')
-                        client_soc.sendall(b'CLOSE_PORTS:' + byte_array)
-                        print(f"Student {clients[readable_socket]} has unauthorised ports open\n")
+                        if open_apps:
+                            byte_array = bytearray(", ".join(open_apps), encoding='utf-8')
+                            client_soc.sendall(b'CLOSE_PORTS:' + byte_array)
+                            print(f"Student {clients[readable_socket]} has unauthorised ports open\n")
 
-                    time.sleep(10)  # not spam client with instructions
+                        time.sleep(10)  # not spam client with instructions
 
-                    # quit option removed to prevent user from stopping the port checker
+                        # quit option removed to prevent user from stopping the port checker
+            
+            except KeyboardInterrupt:
+                break
+
+    server_socket.close()
 
 run()

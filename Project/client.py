@@ -3,13 +3,17 @@ import socket
 import subprocess
 import time
 
+import random
+import string
+
 HOST = "127.0.0.1"
 PORT = 65432 # has to be hardcoded
+USERNAME = "Unassigned"
 
 def send_message(sock, msg):
     # send size of msg then port info
     sock.sendall(str(len(msg)).encode(encoding='utf-8'))
-    print("sending msg of size " + str(len(msg)))
+    print("Sending msg of size " + str(len(msg)))
 
     time.sleep(1)
 
@@ -27,10 +31,13 @@ def list_ports():
 def run():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         if s.connect_ex((HOST, PORT)) == 0:
-
             print("Connected with host!\n")
 
-            send_message(s, "A") # username
+            # receive assigned name
+            instruction = s.recv(15).decode(encoding='utf-8')
+            index = instruction.index(":")
+            USERNAME = str(instruction[index + 1:])
+            print("Assigned name: Student " + USERNAME)
 
             while True:
                 # wait for instruction
@@ -41,7 +48,6 @@ def run():
                     print("Fetching port info...\n")
 
                     send_message(s, port_info)
-
                 elif "CLOSE_PORTS" in instruction:
                     print("Close these apps: ")
                     # instruction in format
