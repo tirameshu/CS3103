@@ -3,21 +3,18 @@ import socket
 import subprocess
 import time
 
-import random
-import string
-
 HOST = "127.0.0.1"
 PORT = 65432 # has to be hardcoded
 USERNAME = "Unassigned"
 
 def send_message(sock, msg):
-    # send size of msg then port info
-    sock.sendall(str(len(msg)).encode(encoding='utf-8'))
-    print("Sending msg of size " + str(len(msg)))
+    # send size of msg together with port info
+    # message format is size and body separated by 2 spaces and ending with a $
+    # [size]  [body content]$
 
-    time.sleep(1)
+    full_msg = (str(len(msg)) + "  " + msg + "$").encode(encoding='utf-8')
+    sock.sendall(full_msg)
 
-    sock.sendall(msg.encode(encoding='utf-8'))
     print("Message sent!\n")
 
 def list_ports():
@@ -34,7 +31,8 @@ def run():
             print("Connected with host!\n")
 
             # receive assigned name
-            instruction = s.recv(15).decode(encoding='utf-8')
+            # currently only reads 2-bytes names
+            instruction = s.recv(16).decode(encoding='utf-8')
             index = instruction.index(":")
             USERNAME = str(instruction[index + 1:])
             print("Assigned name: Student " + USERNAME)

@@ -16,23 +16,32 @@ clients = {}
 def receive_message(client_soc):
     try:
 
-        # Receive size of msg first
-        received = client_soc.recv(HEADER_SIZE)
+        decoded_msg = ""
+        while '$' not in decoded_msg:
+            received = client_soc.recv(1024)
+            
+            # If we received no data,
+            # it is assumed that client closed the connection.
+            # The server will try to reach the client (student) again
+            # if student establishes connection again
 
-        # If we received no data,
-        # it is assumed that client closed the connection.
-        # The server will try to reach the client (student) again
-        # if student establishes connection again
+            if not len(received):
+                print("No message received.\n")
+                return ""
 
-        if not len(received):
-            print("No message received.\n")
-            return ""
+            decoded_msg += received.decode(encoding='utf-8')
 
-        size_of_msg = int(received.decode(encoding='utf-8').strip())
+        separator = decoded_msg.index("  ")
+        size_of_msg = int(decoded_msg[:separator])
 
-        print('header:' + str(size_of_msg))
+        print('Header size: ' + str(size_of_msg))
 
-        return client_soc.recv(size_of_msg).decode(encoding='utf-8')
+        # remove final $ symbol
+        endIndex = decoded_msg.index('$')
+        port_info = decoded_msg[separator + 2:endIndex]
+        # print('Info: ' + port_info)
+
+        return port_info
 
     except Exception as e:
 
@@ -127,6 +136,9 @@ def run():
                         # assign student a username
                         global student_count
                         user = str(student_count)
+                        if (student_count < 10):
+                            # pad with a 0
+                            user = '0' + str(student_count)
                         client_soc.sendall(b'ASSIGNED_NAME:' + bytearray(user, encoding='utf-8'))
 
                         student_count += 1
