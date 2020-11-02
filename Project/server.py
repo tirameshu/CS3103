@@ -6,7 +6,7 @@ import re
 HOST = "127.0.0.1"
 PORT = 65432
 
-HEADER_SIZE = 8
+HEADER_SIZE = 4
 
 clients = {}
 
@@ -42,25 +42,6 @@ def receive_message(client_soc):
 
         print(f'Error receiving message: {str(e)}')
         return ""
-
-# def get_port_info(sock):
-#     sock.settimeout(2) # 2s to receive
-#     port_info = b""
-#     try:
-#         port_info = sock.recv()
-#
-#     except socket.timeout:
-#         if not port_info:
-#             print("No port info received, requesting for resend in 7s.\n")
-#             return []
-#
-#     decoded_port_info = port_info.decode(encoding='utf-8')
-#
-#     print("Port info received!\n")
-#
-#     sock.settimeout(20)
-#
-#     return decoded_port_info
 
 # return list of ports open for listening and sending
 def parse_port_info(lsof_info):
@@ -155,10 +136,14 @@ def run():
 
                     if open_apps:
                         byte_array = bytearray(", ".join(open_apps), encoding='utf-8')
-                        client_soc.sendall(b'CLOSE_PORTS:' + byte_array)
+                        readable_socket.sendall(b'CLOSE_PORTS:' + byte_array)
                         print(f"Student {clients[readable_socket]} has unauthorised ports open\n")
 
-                    time.sleep(10)  # not spam client with instructions
+                # get port info from existing clients
+                for client_soc in clients:
+                    client_soc.sendall(b'GET_PORT')
+
+            time.sleep(10)  # not spam client with instructions
 
                     # quit option removed to prevent user from stopping the port checker
 
