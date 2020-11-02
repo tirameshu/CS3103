@@ -3,10 +3,18 @@ import socket
 import subprocess
 import time
 
-MAX_PORT = 65535
-
 HOST = "127.0.0.1"
 PORT = 65432 # has to be hardcoded
+
+def send_message(sock, msg):
+    # send size of msg then port info
+    sock.sendall(str(len(msg)).encode(encoding='utf-8'))
+    print("sending msg of size " + str(len(msg)))
+
+    time.sleep(1)
+
+    sock.sendall(msg.encode(encoding='utf-8'))
+    print("Message sent!\n")
 
 def list_ports():
     cmd = "sudo lsof -i -P -n | grep -e LISTEN -e ESTABLISHED"
@@ -21,6 +29,9 @@ def run():
         if s.connect_ex((HOST, PORT)) == 0:
 
             print("Connected with host!\n")
+
+            send_message(s, "A") # username
+
             while True:
                 # wait for instruction
                 instruction = s.recv(1024).decode(encoding='utf-8')
@@ -29,12 +40,7 @@ def run():
                     port_info = list_ports()
                     print("Fetching port info...\n")
 
-                    # send size of msg then port info
-                    s.sendall(str(len(port_info)).encode(encoding='utf-8'))
-                    print("sending msg of size " + str(len(port_info)))
-                    time.sleep(1)
-                    s.sendall(port_info.encode(encoding='utf-8'))
-                    print("Port info sent!\n")
+                    send_message(s, port_info)
 
                 elif "CLOSE_PORTS" in instruction:
                     print("Close these apps: ")
