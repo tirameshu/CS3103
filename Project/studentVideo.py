@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 import pyautogui
 import os
@@ -6,79 +5,82 @@ import socket
 import time
 import sys
 import select
+import threading as th
+import keyboard
+
+keep_going = True
+
+def key_capture_thread():
+    global keep_going
+    input()
+    keep_going = False
 
 HOST = '127.0.0.1'  
 PORT = 65432    
 
+name = input('Name: ')
+id_num = input('ID: ')
+
+hello = 'hello:{name}:{id}'.format(name=name, id=id_num)
+
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((HOST, PORT))
 
-while True:
-    # make a screenshot
-    img = pyautogui.screenshot()
+s.send(hello.encode())
+ack = s.recv(1024)
 
-    # convert these pixels to a proper numpy array to work with OpenCV
-    frame = np.array(img)
+if ack.decode() != 'ACK':
+    print('Error')
+    exit(1)
 
-    frame.flatten()
+input('Press enter to start recording')
 
-    byte = frame.tobytes()
+cont = True
 
-    s.send(byte)
+th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
 
-    s.settimeout(1)
-    try:
-    	data = s.recv(1024)
-    	print(data.decode())
+while cont:
 
-    except:
-    	print('timeout')
+    while keep_going:
+        # make a screenshot
+        img = pyautogui.screenshot()
 
-# os.environ['DISPLAY'] = ':0'
+        # convert these pixels to a proper numpy array to work with OpenCV
+        frame = np.array(img)
 
-# # display screen resolution, get it from your OS settings
-# SCREEN_SIZE = (1920, 1080)
+        frame.flatten()
 
-# # define the codec
-# fourcc = cv2.VideoWriter_fourcc(*"XVID")
+        byte = frame.tobytes()
 
-# # create the video write object
-# out = cv2.VideoWriter("output.mp4", fourcc, 5.0, (SCREEN_SIZE))
+        s.send(b'video' + byte)
 
-# while True:
+        s.settimeout(1)
+        try:
+        	data = s.recv(1024)
+        	print(data.decode())
 
-#     # make a screenshot
-#     img = pyautogui.screenshot()
+        except:
+        	print('timeout')
 
-#     # convert these pixels to a proper numpy array to work with OpenCV
-#     frame = np.array(img)
+    print('You paused the recording')
 
-#     # print(frame)
-#     frame = frame.flatten()
+    s.send('pause'.encode())
 
-#     byte = frame.tobytes()
+    while ack.decode() != 'PSE_ACK':
+        ack = s.recv(1024)
 
-#     fframe = np.frombuffer(byte, dtype="uint8")
+    resume = input('Recording paused. Resume? ')
 
-#     print(frame.shape)
-#     print(fframe.shape)
+    if resume == 'yes':
+        s.send(b'resume')
+        while ack.decode() != 'RES_ACK':
+            ack = s.recv(1024)
+        keep_going = True
+        th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
 
-#     fframe = np.reshape(fframe, (1080, 1920, 3))
+    else:
+        s.send(b'stop')
+        while ack.decode() != 'STP_ACK':
+            ack = s.recv(1024)
+        cont = False
 
-#     # convert colors from BGR to RGB
-#     fframe = cv2.cvtColor(fframe, cv2.COLOR_BGR2RGB)
-
-#     # write the frame
-#     out.write(fframe)
-
-
-#     # show the frame
-#     # cv2.imshow("screenshot", frame)
-
-#     # if the user clicks q, it exits
-#     if cv2.waitKey(1) == ord("q"):
-#         break
-
-# # make sure everything is closed when exited
-# cv2.destroyAllWindows()
-# out.release()
