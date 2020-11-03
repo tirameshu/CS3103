@@ -15,8 +15,8 @@ def key_capture_thread():
     input()
     keep_going = False
 
-HOST = '127.0.0.1'  
-PORT = 65432    
+HOST = '127.0.0.1'
+PORT = 65432
 
 name = input('Name: ')
 id_num = input('ID: ')
@@ -55,13 +55,22 @@ while cont:
         s.send(b'video' + byte)
 
         s.settimeout(1)
+
         try:
-        	data = s.recv(1024)
-        	print(data.decode())
+            data = s.recv(1024)
+            print(data.decode())
 
-        except:
-        	print('timeout')
+            if data == b'done':
+                print('Recording stopped by teacher')
+                cont = False
+                keep_going = False
 
+        except Exception as e:
+            print('timeout')
+
+    if cont == False:
+        break
+        
     print('You paused the recording')
 
     s.send('pause'.encode())

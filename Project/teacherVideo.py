@@ -44,6 +44,7 @@ def studentVideoHandler(connection, address):
         vid_out = cv2.VideoWriter(str(stu_info[1]) + '(' + str(stu_info[2]) + ").avi", fourcc, 5.0, (SCREEN_SIZE))
 
         record = True
+
         while record:
             # logger.debug("Waiting for next frame")
             inp = connection.recv(65482)
@@ -58,6 +59,7 @@ def studentVideoHandler(connection, address):
                 else:
                     logger.debug('{number} resumed the recording'.format(number=stu_info[2]))
                     connection.send(b'RES_ACK')
+
             elif inp[:5] == 'video'.encode():
                 inp = inp[5:]
                 data = b''
@@ -92,6 +94,7 @@ def studentVideoHandler(connection, address):
     except:
         logger.exception("Problem handling request")
     finally:
+        connection.send(b'done')
         logger.debug("Closing socket")
         connection.close()
 
@@ -133,7 +136,6 @@ if __name__ == "__main__":
             process.terminate()
             process.join()
     cv2.destroyAllWindows()
-    out.release()
     logging.info("All done")
 
 # make sure everything is closed when exited
