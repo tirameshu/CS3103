@@ -7,6 +7,10 @@ import sys
 import select
 import threading as th
 import keyboard
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("VIDEOSTREAM-CLIENT")
 
 keep_going = True
 
@@ -16,80 +20,85 @@ def key_capture_thread():
     keep_going = False
 
 HOST = '127.0.0.1'
-PORT = 65432
+PORT = 65442
 
-name = input('Name: ')
-id_num = input('ID: ')
+# modified to receive credentials in run function
+def run(name, id_num):
+    logger.debug("setting up videostream for %r, %r", name, id_num)
 
-hello = 'hello:{name}:{id}'.format(name=name, id=id_num)
+    global keep_going
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((HOST, PORT))
+    hello = 'hello:{name}:{id}'.format(name=name, id=id_num)
 
-s.send(hello.encode())
-ack = s.recv(1024)
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((HOST, PORT))
 
-if ack.decode() != 'ACK':
-    print('Error')
-    exit(1)
+    s.send(hello.encode())
+    ack = s.recv(1024)
 
-input('Press enter to start recording')
+    if ack.decode() != 'ACK':
+        logger.debug('Error')
+        exit(1)
 
-cont = True
+    input('Press enter to start recording')
 
-th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
+    cont = True
 
-while cont:
+    th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
 
-    while keep_going:
-        # make a screenshot
-        img = pyautogui.screenshot()
+    while cont:
 
-        # convert these pixels to a proper numpy array to work with OpenCV
-        frame = np.array(img)
+        while keep_going:
+            # make a screenshot
+            img = pyautogui.screenshot()
 
-        frame.flatten()
+            # convert these pixels to a proper numpy array to work with OpenCV
+            frame = np.array(img)
 
-        byte = frame.tobytes()
+            frame.flatten()
 
-        s.send(b'video' + byte)
+            byte = frame.tobytes()
 
-        s.settimeout(1)
+            s.send(b'video' + byte)
 
-        try:
-            data = s.recv(1024)
-            print(data.decode())
+            s.settimeout(3)
 
-            if data == b'done':
-                print('Recording stopped by teacher')
-                cont = False
-                keep_going = False
+            try:
+                data = s.recv(1024)
+                logger.debug(data.decode())
 
-        except Exception as e:
-            print('timeout')
+                if data == b'done':
+                    logger.debug('Recording stopped by teacher')
+                    cont = False
+                    keep_going = False
 
-    if cont == False:
-        break
-        
-    print('You paused the recording')
+            except Exception as e:
+                logger.debug('timeout')
 
-    s.send('pause'.encode())
+        if cont == False:
+            break
+            
+        logger.debug('You paused the recording')
 
-    while ack.decode() != 'PSE_ACK':
-        ack = s.recv(1024)
+        s.send('pause'.encode())
 
-    resume = input('Recording paused. Resume? ')
-
-    if resume == 'yes':
-        s.send(b'resume')
-        while ack.decode() != 'RES_ACK':
+        while ack.decode() != 'PSE_ACK':
             ack = s.recv(1024)
-        keep_going = True
-        th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
 
-    else:
-        s.send(b'stop')
-        while ack.decode() != 'STP_ACK':
-            ack = s.recv(1024)
-        cont = False
+        resume = input('Recording paused. Resume? ')
 
+        if resume == 'yes':
+            s.send(b'resume')
+            while ack.decode() != 'RES_ACK':
+                ack = s.recv(1024)
+            keep_going = True
+            th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
+
+        else:
+            s.send(b'stop')
+            while ack.decode() != 'STP_ACK':
+                ack = s.recv(1024)
+            cont = False
+
+if __name__ == "__main__":
+    run()

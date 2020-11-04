@@ -2,10 +2,14 @@
 import socket
 import subprocess
 import time
+import logging
 
 HOST = "127.0.0.1"
 PORT = 65432 # has to be hardcoded
 USERNAME = "Unassigned"
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("PORTSCAN-CLIENT")
 
 def send_message(sock, msg):
     # send size of msg together with port info
@@ -15,7 +19,7 @@ def send_message(sock, msg):
     full_msg = (str(len(msg)) + "  " + msg + "$").encode(encoding='utf-8')
     sock.sendall(full_msg)
 
-    print("Message sent!\n")
+    logger.debug("Message sent!\n")
 
 def list_ports():
     cmd = "sudo lsof -i -P -n | grep -e LISTEN -e ESTABLISHED"
@@ -25,17 +29,18 @@ def list_ports():
     output = output.decode(encoding='utf-8')
     return output
 
-def run():
+def run(name, id_num):
+    logger.debug("setting up port scan for %r, %r", name, id_num)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         if s.connect_ex((HOST, PORT)) == 0:
-            print("Connected with host!\n")
+            logger.debug("Connected with host!\n")
 
             # receive assigned name
             # currently only reads 2-bytes names
             instruction = s.recv(16).decode(encoding='utf-8')
             index = instruction.index(":")
             USERNAME = str(instruction[index + 1:])
-            print("Assigned name: Student " + USERNAME)
+            logger.debug("Assigned name: Student " + USERNAME)
 
             while True:
                 # wait for instruction
@@ -43,15 +48,16 @@ def run():
                 if instruction == "GET_PORT":
                     # run command
                     port_info = list_ports()
-                    print("Fetching port info...\n")
+                    logger.debug("Fetching port info...\n")
 
                     send_message(s, port_info)
                 elif "CLOSE_PORTS" in instruction:
-                    print("Close these apps: ")
+                    logger.debug("Close these apps: ")
                     # instruction in format
                     # CLOSE_PORTS: app1, app2, ...
                     index = instruction.index(":")
                     apps = instruction[index+1:]
-                    print(apps)
+                    logger.debug(apps)
 
-run()
+if __name__ == "__main__":
+    run()

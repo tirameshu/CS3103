@@ -5,8 +5,8 @@ import numpy as np
 import os
 import sys
 
-HOST = '127.0.0.1' 
-PORT = 65432        
+HOST = '127.0.0.1'
+PORT = 65442    
 
 os.environ['DISPLAY'] = ':0'
 
@@ -27,7 +27,7 @@ def studentVideoHandler(connection, address):
     import numpy as np
 
     logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger("process-%r" % (address,))
+    logger = logging.getLogger("VIDEOSTREAM-process-%r" % (address,))
     frame_size = -1
     counter = 0
     try:
@@ -70,10 +70,13 @@ def studentVideoHandler(connection, address):
                     inp = connection.recv(65482)
                 frame = np.frombuffer(data, dtype="uint8")
                 if frame.shape[0] < 1080*1920:
+                    logger.debug("Frame shape mismatch")
                     continue
                 if frame_size < 0:
                     frame_size = frame.size
+                    logger.debug("Setting initial frame_size")
                 if frame.size != frame_size:
+                    logger.debug("Mismatch frame_size received: %r, expected: %r", frame.size, frame_size)
                     continue
                 logger.debug("Received frame size %r", frame.shape[0])
                 frame = np.reshape(frame, (1080, 1920, -1))
@@ -101,7 +104,7 @@ def studentVideoHandler(connection, address):
 class Server(object):
     def __init__(self, hostname, port):
         import logging
-        self.logger = logging.getLogger("teacher server")
+        self.logger = logging.getLogger("VIDEOSTREAM-SERVER")
         self.hostname = hostname
         self.port = port
 
@@ -119,6 +122,23 @@ class Server(object):
             process.start()
             self.logger.debug("Started process %r", process)
 
+def run():
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    server = Server(HOST, PORT)
+    try:
+        logging.info("Listening")
+        server.start()
+    except:
+        logging.exception("Unexpected exception")
+    finally:
+        logging.info("Shutting down")
+        for process in multiprocessing.active_children():
+            logging.info("Shutting down process %r", process)
+            process.terminate()
+            process.join()
+    cv2.destroyAllWindows()
+    logging.info("All done")
 
 if __name__ == "__main__":
     import logging

@@ -2,6 +2,7 @@ import select
 import socket
 import time
 import re
+import logging
 
 HOST = "127.0.0.1"
 PORT = 65432
@@ -10,6 +11,8 @@ HEADER_SIZE = 8
 
 student_count = 0
 clients = {}
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("PORTSCAN-SERVER")
 
 # returns msg received
 # if no msg received, empty string returned
@@ -26,7 +29,7 @@ def receive_message(client_soc):
             # if student establishes connection again
 
             if not len(received):
-                print("No message received.\n")
+                logger.debug("No message received.\n")
                 return ""
 
             decoded_msg += received.decode(encoding='utf-8')
@@ -34,12 +37,12 @@ def receive_message(client_soc):
         separator = decoded_msg.index("  ")
         size_of_msg = int(decoded_msg[:separator])
 
-        print('Header size: ' + str(size_of_msg))
+        logger.debug('Header size: ' + str(size_of_msg))
 
         # remove final $ symbol
         endIndex = decoded_msg.index('$')
         port_info = decoded_msg[separator + 2:endIndex]
-        # print('Info: ' + port_info)
+        # logger.debug('Info: ' + port_info)
 
         return port_info
 
@@ -50,7 +53,7 @@ def receive_message(client_soc):
         # socket.close() also invokes socket.shutdown(socket.SHUT_RDWR) what sends information about closing the socket (shutdown read/write)
         # and that's also a cause when we receive an empty message
 
-        print(f'Error receiving message: {str(e)}')
+        logger.debug(f'Error receiving message: {str(e)}')
         return ""
 
 # def get_port_info(sock):
@@ -61,12 +64,12 @@ def receive_message(client_soc):
 #
 #     except socket.timeout:
 #         if not port_info:
-#             print("No port info received, requesting for resend in 7s.\n")
+#             logger.debug("No port info received, requesting for resend in 7s.\n")
 #             return []
 #
 #     decoded_port_info = port_info.decode(encoding='utf-8')
 #
-#     print("Port info received!\n")
+#     logger.debug("Port info received!\n")
 #
 #     sock.settimeout(20)
 #
@@ -108,11 +111,12 @@ def parse_port_info(lsof_info):
             if cmd not in open_apps:
                 open_apps.append(cmd)
 
-    print(open_apps)
+    logger.debug(open_apps)
     return open_apps
 
 
 def run():
+    logger.debug("start")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
         server_socket.bind((HOST, PORT))
         server_socket.listen()
@@ -120,9 +124,8 @@ def run():
         # client_soc, addr = server_socket.accept()
         #
         # with client_soc:
-        #     print("\nConnected by: ")
-        #     print(addr)
-
+        #     logger.debug("\nConnected by: ")
+        #     logger.debug(addr)
         sockets_list = [server_socket]
         while True:
             try:
@@ -145,11 +148,11 @@ def run():
 
                         sockets_list.append(client_soc)
                         clients[client_soc] = user
-                        print(f"\nNew connection by: Student {user} from {addr}")
+                        logger.debug(f"\nNew connection by: Student {user} from {addr}")
 
                         # request for port info
                         client_soc.sendall(b'GET_PORT')
-                        print("Requesting for port info\n")
+                        logger.debug("Requesting for port info\n")
 
                     # receiving from existing connections
                     else:
@@ -157,7 +160,7 @@ def run():
                         port_info = receive_message(readable_socket)
 
                         if not port_info: # nth received, likely student disconnected
-                            print(f"No port info received: Student {clients[readable_socket]} disconnected.\n")
+                            logger.debug(f"No port info received: Student {clients[readable_socket]} disconnected.\n")
 
                             # cleanup
                             sockets_list.remove(readable_socket)
@@ -170,7 +173,7 @@ def run():
                         if open_apps:
                             byte_array = bytearray(", ".join(open_apps), encoding='utf-8')
                             client_soc.sendall(b'CLOSE_PORTS:' + byte_array)
-                            print(f"Student {clients[readable_socket]} has unauthorised ports open\n")
+                            logger.debug(f"Student {clients[readable_socket]} has unauthorised ports open\n")
 
                         time.sleep(10)  # not spam client with instructions
 
@@ -180,10 +183,16 @@ def run():
                 for client_soc in clients:
                     client_soc.sendall(b'GET_PORT')
 
-
             except KeyboardInterrupt:
+                logging.exception("Terminate")
                 break
+            except:
+                logging.exception("Unexpected exception")
+                break
+
+
 
     server_socket.close()
 
-run()
+if __name__ == "__main__":
+    run()
