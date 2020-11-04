@@ -132,13 +132,13 @@ def run():
     except:
         logging.exception("Unexpected exception")
     finally:
-        logging.info("Shutting down")
+        logging.info("Shutting down stream")
         for process in multiprocessing.active_children():
             logging.info("Shutting down process %r", process)
             process.terminate()
             process.join()
     cv2.destroyAllWindows()
-    logging.info("All done")
+    logging.info("Stream shut down done")
 
 if __name__ == "__main__":
     import logging

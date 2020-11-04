@@ -43,7 +43,6 @@ if __name__ == "__main__":
 			logging.info("Shutting down process %r", process)
 			process.terminate()
 			process.join()
-	cv2.destroyAllWindows()
 	out.release()
 	logging.info("All done")
 

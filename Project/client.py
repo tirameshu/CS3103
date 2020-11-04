@@ -48,16 +48,16 @@ def run(name, id_num):
                 if instruction == "GET_PORT":
                     # run command
                     port_info = list_ports()
-                    logger.debug("Fetching port info...\n")
+                    # logger.debug("Fetching port info...\n")
 
                     send_message(s, port_info)
                 elif "CLOSE_PORTS" in instruction:
-                    logger.debug("Close these apps: ")
+                    # logger.debug("Close these apps: ")
                     # instruction in format
                     # CLOSE_PORTS: app1, app2, ...
                     index = instruction.index(":")
                     apps = instruction[index+1:]
-                    logger.debug(apps)
+                    # logger.debug(apps)
 
 if __name__ == "__main__":
     run()
