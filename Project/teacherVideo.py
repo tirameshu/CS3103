@@ -2,12 +2,11 @@ import socket
 import multiprocessing
 import cv2
 import numpy as np
-import pyautogui
 import os
 import sys
 
-HOST = '127.0.0.1' 
-PORT = 65432        
+HOST = '127.0.0.1'
+PORT = 65442    
 
 os.environ['DISPLAY'] = ':0'
 
@@ -28,52 +27,84 @@ def studentVideoHandler(connection, address):
     import numpy as np
 
     logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger("process-%r" % (address,))
-    vid_out = cv2.VideoWriter("client" + str(address[1]) + ".avi", fourcc, 5.0, (SCREEN_SIZE))
+    logger = logging.getLogger("VIDEOSTREAM-process-%r" % (address,))
     frame_size = -1
     counter = 0
     try:
         logger.debug("Connected %r at %r", connection, address)
-        while True:
-            logger.debug("Waiting for next frame")
+
+        stu_data = connection.recv(1024)
+        stu_data = stu_data.decode()
+
+        stu_info = stu_data.split(':')
+
+        logger.debug('Established connection with {name}({number})'.format(name=stu_info[1], number=stu_info[2]))
+        connection.send(b'ACK')
+
+        vid_out = cv2.VideoWriter(str(stu_info[1]) + '(' + str(stu_info[2]) + ").avi", fourcc, 5.0, (SCREEN_SIZE))
+
+        record = True
+
+        while record:
+            # logger.debug("Waiting for next frame")
             inp = connection.recv(65482)
-            data = b''
-            while inp:
-                data = data + inp
-                if sys.getsizeof(inp) < 65482:
-                    break
-                inp = connection.recv(65482)
-            frame = np.frombuffer(data, dtype="uint8")
-            if frame_size < 0:
-                frame_size = frame.size
-            if frame.size != frame_size:
-                continue
-            logger.debug("Received frame size %r", frame.size)
-            frame = np.reshape(frame, (1080, 1920, -1))
+            if inp == 'pause'.encode():
+                logger.debug('{number} paused the recording'.format(number=stu_info[2]))
+                connection.send(b'PSE_ACK')
+                resume = connection.recv(1024)
+                if resume.decode() == 'stop':
+                    logger.debug('{number} stopped the recording'.format(number=stu_info[2]))
+                    record = False
+                    connection.send(b'STP_ACK')
+                else:
+                    logger.debug('{number} resumed the recording'.format(number=stu_info[2]))
+                    connection.send(b'RES_ACK')
 
-            # convert colors from BGR to RGB
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            elif inp[:5] == 'video'.encode():
+                inp = inp[5:]
+                data = b''
+                while inp:
+                    data = data + inp
+                    if sys.getsizeof(inp) < 65482:
+                        break
+                    inp = connection.recv(65482)
+                frame = np.frombuffer(data, dtype="uint8")
+                if frame.shape[0] < 1080*1920:
+                    logger.debug("Frame shape mismatch")
+                    continue
+                if frame_size < 0:
+                    frame_size = frame.size
+                    logger.debug("Setting initial frame_size")
+                if frame.size != frame_size:
+                    logger.debug("Mismatch frame_size received: %r, expected: %r", frame.size, frame_size)
+                    continue
+                logger.debug("Received frame size %r", frame.shape[0])
+                frame = np.reshape(frame, (1080, 1920, -1))
 
-            # write the frame
-            vid_out.write(frame)
+                # convert colors from BGR to RGB
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            # show the frame
-            # cv2.imshow("screenshot", frame)
+                # write the frame
+                vid_out.write(frame)
 
-            connection.send('ACK{counter}'.format(counter = counter).encode())
-            counter = counter + 1
-            # print(frame.shape)
+                # show the frame
+                # cv2.imshow("screenshot", frame)
+
+                connection.send('ACK{counter}'.format(counter = counter).encode())
+                counter = counter + 1
+                # print(frame.shape)
 
     except:
         logger.exception("Problem handling request")
     finally:
+        connection.send(b'done')
         logger.debug("Closing socket")
         connection.close()
 
 class Server(object):
     def __init__(self, hostname, port):
         import logging
-        self.logger = logging.getLogger("teacher server")
+        self.logger = logging.getLogger("VIDEOSTREAM-SERVER")
         self.hostname = hostname
         self.port = port
 
@@ -91,6 +122,23 @@ class Server(object):
             process.start()
             self.logger.debug("Started process %r", process)
 
+def run():
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    server = Server(HOST, PORT)
+    try:
+        logging.info("Listening")
+        server.start()
+    except:
+        logging.exception("Unexpected exception")
+    finally:
+        logging.info("Shutting down stream")
+        for process in multiprocessing.active_children():
+            logging.info("Shutting down process %r", process)
+            process.terminate()
+            process.join()
+    cv2.destroyAllWindows()
+    logging.info("Stream shut down done")
 
 if __name__ == "__main__":
     import logging
@@ -108,7 +156,6 @@ if __name__ == "__main__":
             process.terminate()
             process.join()
     cv2.destroyAllWindows()
-    out.release()
     logging.info("All done")
 
 # make sure everything is closed when exited

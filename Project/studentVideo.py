@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 import pyautogui
 import os
@@ -6,79 +5,100 @@ import socket
 import time
 import sys
 import select
+import threading as th
+import keyboard
+import logging
 
-HOST = '127.0.0.1'  
-PORT = 65432    
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("VIDEOSTREAM-CLIENT")
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((HOST, PORT))
+keep_going = True
 
-while True:
-    # make a screenshot
-    img = pyautogui.screenshot()
+def key_capture_thread():
+    global keep_going
+    input()
+    keep_going = False
 
-    # convert these pixels to a proper numpy array to work with OpenCV
-    frame = np.array(img)
+HOST = '127.0.0.1'
+PORT = 65442
 
-    frame.flatten()
+# modified to receive credentials in run function
+def run(name, id_num):
+    logger.debug("setting up videostream for %r, %r", name, id_num)
 
-    byte = frame.tobytes()
+    global keep_going
 
-    s.send(byte)
+    hello = 'hello:{name}:{id}'.format(name=name, id=id_num)
 
-    s.settimeout(1)
-    try:
-    	data = s.recv(1024)
-    	print(data.decode())
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((HOST, PORT))
 
-    except:
-    	print('timeout')
+    s.send(hello.encode())
+    ack = s.recv(1024)
 
-# os.environ['DISPLAY'] = ':0'
+    if ack.decode() != 'ACK':
+        logger.debug('Error')
+        exit(1)
 
-# # display screen resolution, get it from your OS settings
-# SCREEN_SIZE = (1920, 1080)
+    input('Press enter to start recording')
 
-# # define the codec
-# fourcc = cv2.VideoWriter_fourcc(*"XVID")
+    cont = True
 
-# # create the video write object
-# out = cv2.VideoWriter("output.mp4", fourcc, 5.0, (SCREEN_SIZE))
+    th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
 
-# while True:
+    while cont:
 
-#     # make a screenshot
-#     img = pyautogui.screenshot()
+        while keep_going:
+            # make a screenshot
+            img = pyautogui.screenshot()
 
-#     # convert these pixels to a proper numpy array to work with OpenCV
-#     frame = np.array(img)
+            # convert these pixels to a proper numpy array to work with OpenCV
+            frame = np.array(img)
 
-#     # print(frame)
-#     frame = frame.flatten()
+            frame.flatten()
 
-#     byte = frame.tobytes()
+            byte = frame.tobytes()
 
-#     fframe = np.frombuffer(byte, dtype="uint8")
+            s.send(b'video' + byte)
 
-#     print(frame.shape)
-#     print(fframe.shape)
+            s.settimeout(3)
 
-#     fframe = np.reshape(fframe, (1080, 1920, 3))
+            try:
+                data = s.recv(1024)
+                logger.debug(data.decode())
 
-#     # convert colors from BGR to RGB
-#     fframe = cv2.cvtColor(fframe, cv2.COLOR_BGR2RGB)
+                if data == b'done':
+                    logger.debug('Recording stopped by teacher')
+                    cont = False
+                    keep_going = False
 
-#     # write the frame
-#     out.write(fframe)
+            except Exception as e:
+                logger.debug('timeout')
 
+        if cont == False:
+            break
+            
+        logger.debug('You paused the recording')
 
-#     # show the frame
-#     # cv2.imshow("screenshot", frame)
+        s.send('pause'.encode())
 
-#     # if the user clicks q, it exits
-#     if cv2.waitKey(1) == ord("q"):
-#         break
+        while ack.decode() != 'PSE_ACK':
+            ack = s.recv(1024)
 
-# # make sure everything is closed when exited
-# cv2.destroyAllWindows()
-# out.release()
+        resume = input('Recording paused. Resume? ')
+
+        if resume == 'yes':
+            s.send(b'resume')
+            while ack.decode() != 'RES_ACK':
+                ack = s.recv(1024)
+            keep_going = True
+            th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
+
+        else:
+            s.send(b'stop')
+            while ack.decode() != 'STP_ACK':
+                ack = s.recv(1024)
+            cont = False
+
+if __name__ == "__main__":
+    run()

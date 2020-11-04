@@ -1,31 +1,25 @@
 # scans local ports
 import socket
 import subprocess
-
-MAX_PORT = 65535
+import time
+import logging
 
 HOST = "127.0.0.1"
 PORT = 65432 # has to be hardcoded
+USERNAME = "Unassigned"
 
-def get_apps(sock):
-    sock.settimeout(2)  # 2s to receive
-    app_info = b""
-    received = sock.recv(1024)
-    try:
-        while received:
-            app_info += received
-            received = sock.recv(1024)
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("PORTSCAN-CLIENT")
 
-    except socket.timeout:
-        if not app_info:
-            print("No app info received, server will resend in 5s.\n")
-            return []
+def send_message(sock, msg):
+    # send size of msg together with port info
+    # message format is size and body separated by 2 spaces and ending with a $
+    # [size]  [body content]$
 
-    decoded_app_info = app_info.decode(encoding='utf-8')
+    full_msg = (str(len(msg)) + "  " + msg + "$").encode(encoding='utf-8')
+    sock.sendall(full_msg)
 
-    sock.settimeout(20)
-
-    return decoded_app_info
+    logger.debug("Message sent!\n")
 
 def list_ports():
     cmd = "sudo lsof -i -P -n | grep -e LISTEN -e ESTABLISHED"
@@ -35,27 +29,35 @@ def list_ports():
     output = output.decode(encoding='utf-8')
     return output
 
-def process_ports(output):
-    print(output)
-
-def run():
+def run(name, id_num):
+    logger.debug("setting up port scan for %r, %r", name, id_num)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         if s.connect_ex((HOST, PORT)) == 0:
+            logger.debug("Connected with host!\n")
 
-            print("Connected with host!\n")
+            # receive assigned name
+            # currently only reads 2-bytes names
+            instruction = s.recv(16).decode(encoding='utf-8')
+            index = instruction.index(":")
+            USERNAME = str(instruction[index + 1:])
+            logger.debug("Assigned name: Student " + USERNAME)
+
             while True:
                 # wait for instruction
                 instruction = s.recv(1024).decode(encoding='utf-8')
                 if instruction == "GET_PORT":
+                    # run command
                     port_info = list_ports()
-                    print("Fetching port info...\n")
-                    s.sendall(port_info.encode(encoding='utf-8'))
-                    print("Port info sent!\n")
-                elif "CLOSE_PORTS" in instruction:
-                    print("Close these apps: ")
+                    # logger.debug("Fetching port info...\n")
 
+                    send_message(s, port_info)
+                elif "CLOSE_PORTS" in instruction:
+                    # logger.debug("Close these apps: ")
+                    # instruction in format
+                    # CLOSE_PORTS: app1, app2, ...
                     index = instruction.index(":")
                     apps = instruction[index+1:]
-                    print(apps)
+                    # logger.debug(apps)
 
-run()
+if __name__ == "__main__":
+    run()
