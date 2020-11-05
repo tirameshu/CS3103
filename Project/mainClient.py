@@ -1,6 +1,6 @@
 import logging
 import multiprocessing
-import client
+import portScanClient
 import studentVideo
 import time
 
@@ -19,7 +19,7 @@ def setupClientMain():
 
 	# spawn PORT SCAN
 	logger.debug("Creating PORTSCAN client")
-	process = multiprocessing.Process(target=client.run, args=(name, id_num))
+	process = multiprocessing.Process(target=portScanClient.run, args=(name, id_num))
 	process.daemon = True
 	process.start()
 	

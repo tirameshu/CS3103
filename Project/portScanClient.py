@@ -35,29 +35,32 @@ def run(name, id_num):
         if s.connect_ex((HOST, PORT)) == 0:
             logger.debug("Connected with host!\n")
 
-            # receive assigned name
-            # currently only reads 2-bytes names
-            instruction = s.recv(16).decode(encoding='utf-8')
-            index = instruction.index(":")
-            USERNAME = str(instruction[index + 1:])
-            logger.debug("Assigned name: Student " + USERNAME)
+            # send name and id_num to server to identify itself
+            hello = 'hello:{name}:{id}'.format(name=name, id=id_num)
+            s.send(hello.encode())
+            ack = s.recv(1024)
 
+            if ack.decode() != 'ACK':
+                logger.debug('Error')
+                exit(1)
+
+            # begin port scanning
             while True:
                 # wait for instruction
                 instruction = s.recv(1024).decode(encoding='utf-8')
                 if instruction == "GET_PORT":
                     # run command
                     port_info = list_ports()
-                    # logger.debug("Fetching port info...\n")
+                    logger.debug("Fetching port info...\n")
 
                     send_message(s, port_info)
                 elif "CLOSE_PORTS" in instruction:
-                    # logger.debug("Close these apps: ")
+                    logger.debug("Close these apps: ")
                     # instruction in format
                     # CLOSE_PORTS: app1, app2, ...
                     index = instruction.index(":")
                     apps = instruction[index+1:]
-                    # logger.debug(apps)
+                    logger.debug(apps)
 
 if __name__ == "__main__":
     run()

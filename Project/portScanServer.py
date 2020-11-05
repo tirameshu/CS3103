@@ -9,7 +9,6 @@ PORT = 65432
 
 HEADER_SIZE = 8
 
-student_count = 0
 clients = {}
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("PORTSCAN-SERVER")
@@ -56,25 +55,6 @@ def receive_message(client_soc):
         logger.debug(f'Error receiving message: {str(e)}')
         return ""
 
-# def get_port_info(sock):
-#     sock.settimeout(2) # 2s to receive
-#     port_info = b""
-#     try:
-#         port_info = sock.recv()
-#
-#     except socket.timeout:
-#         if not port_info:
-#             logger.debug("No port info received, requesting for resend in 7s.\n")
-#             return []
-#
-#     decoded_port_info = port_info.decode(encoding='utf-8')
-#
-#     logger.debug("Port info received!\n")
-#
-#     sock.settimeout(20)
-#
-#     return decoded_port_info
-
 # return list of ports open for listening and sending
 def parse_port_info(lsof_info):
     if not lsof_info:
@@ -116,16 +96,11 @@ def parse_port_info(lsof_info):
 
 
 def run():
-    logger.debug("start")
+    logger.debug("Start port scanning server")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
         server_socket.bind((HOST, PORT))
         server_socket.listen()
 
-        # client_soc, addr = server_socket.accept()
-        #
-        # with client_soc:
-        #     logger.debug("\nConnected by: ")
-        #     logger.debug(addr)
         sockets_list = [server_socket]
         while True:
             try:
@@ -133,22 +108,21 @@ def run():
 
                 for readable_socket in read_sockets:
                     if readable_socket == server_socket:
-                        # new connection received
+                        # new connection
                         client_soc, addr = server_socket.accept()
 
-                        # assign student a username
-                        global student_count
-                        user = str(student_count)
-                        if (student_count < 10):
-                            # pad with a 0
-                            user = '0' + str(student_count)
-                        client_soc.sendall(b'ASSIGNED_NAME:' + bytearray(user, encoding='utf-8'))
+                        # ACK student name and id_num
+                        stu_data = client_soc.recv(1024)
+                        stu_data = stu_data.decode()
 
-                        student_count += 1
+                        stu_info = stu_data.split(':')
+
+                        logger.debug('Established connection with {name}({number})'.format(name=stu_info[1], number=stu_info[2]))
+                        client_soc.send(b'ACK')
 
                         sockets_list.append(client_soc)
-                        clients[client_soc] = user
-                        logger.debug(f"\nNew connection by: Student {user} from {addr}")
+                        clients[client_soc] = stu_info[1]
+                        logger.debug(f"\nNew connection by: Student {stu_info[1]} from {addr}")
 
                         # request for port info
                         client_soc.sendall(b'GET_PORT')
@@ -189,8 +163,6 @@ def run():
             except:
                 logging.exception("Unexpected exception")
                 break
-
-
 
     server_socket.close()
 
