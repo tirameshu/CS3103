@@ -10,6 +10,8 @@ import keyboard
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
+pil_logger = logging.getLogger('PIL')
+pil_logger.setLevel(logging.INFO)
 logger = logging.getLogger("VIDEOSTREAM-CLIENT")
 
 keep_going = True
@@ -40,65 +42,65 @@ def run(name, id_num):
         logger.debug('Error')
         exit(1)
 
-    input('Press enter to start recording')
+    # input('Press enter to start recording')
 
-    cont = True
+    # cont = True
 
-    th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
+    # th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
 
-    while cont:
+    # while cont:
 
-        while keep_going:
-            # make a screenshot
-            img = pyautogui.screenshot()
+    while keep_going:
+        # make a screenshot
+        img = pyautogui.screenshot()
 
-            # convert these pixels to a proper numpy array to work with OpenCV
-            frame = np.array(img)
+        # convert these pixels to a proper numpy array to work with OpenCV
+        frame = np.array(img)
 
-            frame.flatten()
+        frame.flatten()
 
-            byte = frame.tobytes()
+        byte = frame.tobytes()
 
-            s.send(b'video' + byte)
+        s.send(b'video' + byte)
 
-            s.settimeout(3)
+        s.settimeout(3)
 
-            try:
-                data = s.recv(1024)
-                logger.debug(data.decode())
+        try:
+            data = s.recv(1024)
+            # logger.debug(data.decode())
 
-                if data == b'done':
-                    logger.debug('Recording stopped by teacher')
-                    cont = False
-                    keep_going = False
+            if data == b'done':
+                # logger.debug('Recording stopped by teacher')
+                cont = False
+                keep_going = False
 
-            except Exception as e:
-                logger.debug('timeout')
+        except Exception as e:
+            logger.debug('timeout')
 
-        if cont == False:
-            break
-            
-        logger.debug('You paused the recording')
+    # if cont == False:
+    #     break
+        
+    # logger.debug('You paused the recording')
 
-        s.send('pause'.encode())
+    # s.send('pause'.encode())
 
-        while ack.decode() != 'PSE_ACK':
-            ack = s.recv(1024)
+    # while ack.decode() != 'PSE_ACK':
+    #     ack = s.recv(1024)
 
-        resume = input('Recording paused. Resume? ')
+    # resume = input('Recording paused. Resume? ')
 
-        if resume == 'yes':
-            s.send(b'resume')
-            while ack.decode() != 'RES_ACK':
-                ack = s.recv(1024)
-            keep_going = True
-            th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
+    # if resume == 'yes':
+    #     s.send(b'resume')
+    #     while ack.decode() != 'RES_ACK':
+    #         ack = s.recv(1024)
+    #     keep_going = True
+    #     th.Thread(target=key_capture_thread, args=(), name='key_capture_thread', daemon=True).start()
 
-        else:
-            s.send(b'stop')
-            while ack.decode() != 'STP_ACK':
-                ack = s.recv(1024)
-            cont = False
+    # else:
+    #     s.send(b'stop')
+    #     while ack.decode() != 'STP_ACK':
+    #         ack = s.recv(1024)
+    #     cont = False
 
 if __name__ == "__main__":
-    run()
+    run("NAME", "ID")

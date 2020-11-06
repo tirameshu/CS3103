@@ -19,7 +19,7 @@ def send_message(sock, msg):
     full_msg = (str(len(msg)) + "  " + msg + "$").encode(encoding='utf-8')
     sock.sendall(full_msg)
 
-    logger.debug("Message sent!\n")
+    # logger.debug("Message sent!\n")
 
 def list_ports():
     cmd = "sudo lsof -i -P -n | grep -e LISTEN -e ESTABLISHED"
@@ -41,7 +41,7 @@ def run(name, id_num):
             ack = s.recv(1024)
 
             if ack.decode() != 'ACK':
-                logger.debug('Error')
+                # logger.debug('Error')
                 exit(1)
 
             # begin port scanning
@@ -51,16 +51,16 @@ def run(name, id_num):
                 if instruction == "GET_PORT":
                     # run command
                     port_info = list_ports()
-                    logger.debug("Fetching port info...\n")
+                    # logger.debug("Fetching port info...\n")
 
                     send_message(s, port_info)
                 elif "CLOSE_PORTS" in instruction:
-                    logger.debug("Close these apps: ")
+                    # logger.debug("Close these apps: ")
                     # instruction in format
                     # CLOSE_PORTS: app1, app2, ...
                     index = instruction.index(":")
                     apps = instruction[index+1:]
-                    logger.debug(apps)
+                    # logger.debug(apps)
 
 if __name__ == "__main__":
     run()
