@@ -41,7 +41,7 @@ def studentVideoHandler(connection, address):
         logger.debug('Established connection with {name}({number})'.format(name=stu_info[1], number=stu_info[2]))
         connection.send(b'ACK')
 
-        vid_out = cv2.VideoWriter('video/' + str(stu_info[1]) + '(' + str(stu_info[2]) + ").avi", fourcc, 5.0, (SCREEN_SIZE))
+        vid_out = cv2.VideoWriter('video/' + str(stu_info[1]) + '(' + str(stu_info[2]) + ").avi", fourcc, 1.0, (SCREEN_SIZE))
 
         record = True
 
@@ -59,6 +59,10 @@ def studentVideoHandler(connection, address):
                 else:
                     logger.debug('{number} resumed the recording'.format(number=stu_info[2]))
                     connection.send(b'RES_ACK')
+            if inp == 'stop'.decode():
+                logger.debug('{number} stopped the recording'.format(number=stu_info[2]))
+                record = False
+                connection.send(b'STP_ACK')                
 
             elif inp[:5] == 'video'.encode():
                 inp = inp[5:]
