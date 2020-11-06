@@ -5,29 +5,52 @@ import socket
 import select
 import types
 import errno
+import time
 
 HOST = '127.0.0.1'  # The server's hostname or IP address
 PORT = 65432      # The port used by the server
 
-username = input('USERNAME FOR CHAT: ')
+def split_message(byte_message):
+    message_arr = byte_message.decode().split(": ")
+    return message_arr[0], message_arr[1]
+
+def get_q_num(header):
+    header_arr = header.split("/")
+    return int(header_arr[2])
+
+def get_number_of_questions(header):
+    header_arr = header.split("/")
+    return int(header_arr[3])
+
+def create_header(student_id, questionNumber):
+    return "{}/A/{}: ".format(student_id, questionNumber)
+
+matric__num = input('MATRIC NUMBER: ')
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
-welcome_message = client_socket.recv(1024)
-print(welcome_message.decode())
+print(matric__num)
+client_socket.send(str.encode(matric__num))
+header, body = split_message(client_socket.recv(1024))
+print(header)
+question_count = get_q_num(header)
+number_of_questions = get_number_of_questions(header)
+print(body)     # print first question
 client_socket.setblocking(False)
 
-while True:
-    message = input()
-    if message:
-        # print("<You>: {}".format(message))
-        client_socket.send(str.encode(message))
+while question_count <= number_of_questions:
+    answer = input()
+    if answer:
+        client_socket.send(str.encode(create_header(matric__num, question_count) + answer))
+        question_count += 1
+        # header, body = split_message(client_socket.recv(1024))
+        # print(body)
+        time.sleep(1)
+        if question_count > number_of_questions:
+            continue
     try:
-        while True:
-            recpt = client_socket.recv(1024)
-            # if not len(recpt):
-            #     print('Connection closed by server')
-            #     sys.exit()
-            print(recpt)
+        header, body = split_message(client_socket.recv(1024))
+        question_count = get_q_num(header)
+        print(body)     # print first question
     except IOError as e:
         if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
             print('Reading error: {}'.format(str(e)))
@@ -36,7 +59,8 @@ while True:
     except Exception as e:
         print('Found error: {}'.format(str(e)))
         sys.exit()
-
+print("Closing connection. Test completed.")
+client_socket.close()
 
     # maintains list of possible input streams
     # sockets_list = [sys.stdin, server]
