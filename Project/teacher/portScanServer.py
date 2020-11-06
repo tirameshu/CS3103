@@ -6,6 +6,8 @@ import logging
 
 HOST = "127.0.0.1"
 PORT = 65432
+QNA_PORT = 65433
+VIDEO_PORT = 65442
 
 HEADER_SIZE = 8
 
@@ -87,7 +89,7 @@ def parse_port_info(lsof_info):
                 port = int(part[part.index(":")+1:]) # take port number
                 break
 
-        if port != PORT:
+        if port != PORT and port != QNA_PORT and port != VIDEO_PORT:
             if cmd not in open_apps:
                 open_apps.append(cmd)
 
