@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys
+import sys, getopt
 import socket
 import select
 import types
@@ -8,7 +8,7 @@ import errno
 import time
 
 HOST = '127.0.0.1'  # The server's hostname or IP address
-PORT = 65432      # The port used by the server
+PORT = 65432    # The port used by the server
 
 def split_message(byte_message):
     message_arr = byte_message.decode().split(": ")

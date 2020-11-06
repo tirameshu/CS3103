@@ -92,7 +92,7 @@ while True:
             if question_number == num_questions:
                 print("Closed connection from {}. Test completed.".format(student_id))
                 print(answers[student_id])
-                notified_socket.close()
+                # notified_socket.close()
                 sockets_list.remove(notified_socket)
                 clients.remove(notified_socket)
                 continue
