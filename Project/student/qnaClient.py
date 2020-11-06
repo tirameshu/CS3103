@@ -32,7 +32,7 @@ def create_header(student_id, questionNumber):
 def run(name, id_num):
     logger.debug("setting up port scan for %r, %r", name, id_num)
 
-    matric__num = input('MATRIC NUMBER: ')
+    matric__num = id_num
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((HOST, PORT))
     logger.debug(matric__num)

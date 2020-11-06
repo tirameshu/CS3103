@@ -161,9 +161,13 @@ def run():
 
             except KeyboardInterrupt:
                 logging.exception("Terminate")
+                logger.debug("Closing socket")
+                client_soc.close()
                 break
             except:
                 logging.exception("Unexpected exception")
+                logger.debug("Closing socket")
+                client_soc.close()
                 break
 
     server_socket.close()
