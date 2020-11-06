@@ -3,3 +3,7 @@
 *.png*
 *.idea
 *pcapng
+__pycache__/
+
+
+teacher/video/

@@ -41,7 +41,7 @@ def studentVideoHandler(connection, address):
         logger.debug('Established connection with {name}({number})'.format(name=stu_info[1], number=stu_info[2]))
         connection.send(b'ACK')
 
-        vid_out = cv2.VideoWriter(str(stu_info[1]) + '(' + str(stu_info[2]) + ").avi", fourcc, 5.0, (SCREEN_SIZE))
+        vid_out = cv2.VideoWriter('video/' + str(stu_info[1]) + '(' + str(stu_info[2]) + ").avi", fourcc, 5.0, (SCREEN_SIZE))
 
         record = True
 

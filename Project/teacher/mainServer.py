@@ -1,7 +1,7 @@
 import multiprocessing
 import logging
 import teacherVideo
-import server
+import portScanServer
 
 def setupServerMain():
     logging.basicConfig(level=logging.DEBUG)
@@ -13,7 +13,7 @@ def setupServerMain():
 
     # spawn processes port scan
     logger.debug("Creating PORTSCAN server")
-    process = multiprocessing.Process(target=server.run)
+    process = multiprocessing.Process(target=portScanServer.run)
     process.daemon = True
     process.start()
 
