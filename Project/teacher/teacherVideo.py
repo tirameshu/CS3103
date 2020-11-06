@@ -59,7 +59,7 @@ def studentVideoHandler(connection, address):
                 else:
                     logger.debug('{number} resumed the recording'.format(number=stu_info[2]))
                     connection.send(b'RES_ACK')
-            if inp == 'stop'.decode():
+            if inp == 'stop'.encode():
                 logger.debug('{number} stopped the recording'.format(number=stu_info[2]))
                 record = False
                 connection.send(b'STP_ACK')                
@@ -145,21 +145,6 @@ def run():
     logging.info("Stream shut down done")
 
 if __name__ == "__main__":
-    import logging
-    logging.basicConfig(level=logging.DEBUG)
-    server = Server(HOST, PORT)
-    try:
-        logging.info("Listening")
-        server.start()
-    except:
-        logging.exception("Unexpected exception")
-    finally:
-        logging.info("Shutting down")
-        for process in multiprocessing.active_children():
-            logging.info("Shutting down process %r", process)
-            process.terminate()
-            process.join()
-    cv2.destroyAllWindows()
-    logging.info("All done")
+    run()
 
 # make sure everything is closed when exited

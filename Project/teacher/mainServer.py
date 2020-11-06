@@ -2,14 +2,13 @@ import multiprocessing
 import logging
 import teacherVideo
 import portScanServer
+import qnaServer
 
 def setupServerMain():
     logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger("MAIN_SERVER")
 
     logger.debug("initilaizing servers")
-    # spawn processes qna
-    logger.debug("Creating Q&A server")
 
     # spawn processes port scan
     logger.debug("Creating PORTSCAN server")
@@ -17,6 +16,12 @@ def setupServerMain():
     process.daemon = True
     process.start()
 
+    # spawn processes qna
+    logger.debug("Creating Q&A server")
+    process = multiprocessing.Process(target=qnaServer.run)
+    process.daemon = True
+    process.start()
+    
     # teacher video run in parent thread
     logger.debug("Creating VIDEOSTREAM server")
     teacherVideo.run()

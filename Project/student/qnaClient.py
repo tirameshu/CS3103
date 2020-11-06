@@ -6,9 +6,13 @@ import select
 import types
 import errno
 import time
+import logging
 
 HOST = '127.0.0.1'  # The server's hostname or IP address
-PORT = 65432    # The port used by the server
+PORT = 65433    # The port used by the server\
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("QNA-SERVER")
 
 def split_message(byte_message):
     message_arr = byte_message.decode().split(": ")
@@ -25,42 +29,48 @@ def get_number_of_questions(header):
 def create_header(student_id, questionNumber):
     return "{}/A/{}: ".format(student_id, questionNumber)
 
-matric__num = input('MATRIC NUMBER: ')
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.connect((HOST, PORT))
-print(matric__num)
-client_socket.send(str.encode(matric__num))
-header, body = split_message(client_socket.recv(1024))
-print(header)
-question_count = get_q_num(header)
-number_of_questions = get_number_of_questions(header)
-print(body)     # print first question
-client_socket.setblocking(False)
+def run(name, id_num):
+    logger.debug("setting up port scan for %r, %r", name, id_num)
 
-while question_count <= number_of_questions:
-    answer = input()
-    if answer:
-        client_socket.send(str.encode(create_header(matric__num, question_count) + answer))
-        question_count += 1
-        # header, body = split_message(client_socket.recv(1024))
-        # print(body)
-        time.sleep(1)
-        if question_count > number_of_questions:
+    matric__num = id_num
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.connect((HOST, PORT))
+    logger.debug(matric__num)
+    client_socket.send(str.encode(matric__num))
+    header, body = split_message(client_socket.recv(1024))
+    logger.debug(header)
+    question_count = get_q_num(header)
+    number_of_questions = get_number_of_questions(header)
+    logger.debug(body)     # logger.debug first question
+    client_socket.setblocking(False)
+
+    while question_count <= number_of_questions:
+        answer = input()
+        if answer:
+            client_socket.send(str.encode(create_header(matric__num, question_count) + answer))
+            question_count += 1
+            # header, body = split_message(client_socket.recv(1024))
+            # logger.debug(body)
+            time.sleep(1)
+            if question_count > number_of_questions:
+                continue
+        try:
+            header, body = split_message(client_socket.recv(1024))
+            question_count = get_q_num(header)
+            logger.debug(body)     # logger.debug first question
+        except IOError as e:
+            if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
+                logger.debug('Reading error: {}'.format(str(e)))
+                sys.exit()
             continue
-    try:
-        header, body = split_message(client_socket.recv(1024))
-        question_count = get_q_num(header)
-        print(body)     # print first question
-    except IOError as e:
-        if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
-            print('Reading error: {}'.format(str(e)))
+        except Exception as e:
+            logger.debug('Found error: {}'.format(str(e)))
             sys.exit()
-        continue
-    except Exception as e:
-        print('Found error: {}'.format(str(e)))
-        sys.exit()
-print("Closing connection. Test completed.")
-client_socket.close()
+    logger.debug("Closing connection. Test completed.")
+    client_socket.close()
+
+if __name__ == "__main__":
+    run("NAME", "ID")
 
     # maintains list of possible input streams
     # sockets_list = [sys.stdin, server]
@@ -70,7 +80,7 @@ client_socket.close()
     # for socks in read_sockets:
     #     if socks == server:
     #         message = socks.recv(2048)
-    #         print(message)
+    #         logger.debug(message)
     #     else:
     #         message = sys.stdin.readline
     #         server.send(message)
@@ -85,7 +95,7 @@ client_socket.close()
 #     server_addr = (host, port)
 #     for i in range(0, num_conns):
 #         connid = i + 1
-#         print("starting connection", connid, "to", server_addr)
+#         logger.debug("starting connection", connid, "to", server_addr)
 #         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #         sock.setblocking(False)
 #         sock.connect_ex(server_addr)
@@ -106,23 +116,23 @@ client_socket.close()
 #     if mask & selectors.EVENT_READ:
 #         recv_data = sock.recv(1024)  # Should be ready to read
 #         if recv_data:
-#             print("received", repr(recv_data), "from connection", data.connid)
+#             logger.debug("received", repr(recv_data), "from connection", data.connid)
 #             data.recv_total += len(recv_data)
 #         if not recv_data or data.recv_total == data.msg_total:
-#             print("closing connection", data.connid)
+#             logger.debug("closing connection", data.connid)
 #             sel.unregister(sock)
 #             sock.close()
 #     if mask & selectors.EVENT_WRITE:
 #         if not data.outb and data.messages:
 #             data.outb = data.messages.pop(0)
 #         if data.outb:
-#             print("sending", repr(data.outb), "to connection", data.connid)
+#             logger.debug("sending", repr(data.outb), "to connection", data.connid)
 #             sent = sock.send(data.outb)  # Should be ready to write
 #             data.outb = data.outb[sent:]
 
 
 # if len(sys.argv) != 2:
-#     print("usage:", sys.argv[0], "<num_connections>")
+#     logger.debug("usage:", sys.argv[0], "<num_connections>")
 #     sys.exit(1)
 
 # num_conns = sys.argv[1]
@@ -138,6 +148,6 @@ client_socket.close()
 #         if not sel.get_map():
 #             break
 # except KeyboardInterrupt:
-#     print("caught keyboard interrupt, exiting")
+#     logger.debug("caught keyboard interrupt, exiting")
 # finally:
 #     sel.close()
