@@ -37,7 +37,11 @@ def run(name, id_num):
     client_socket.connect((HOST, PORT))
     # logger.debug(matric__num)
     client_socket.send(str.encode(matric__num))
-    header, body = split_message(client_socket.recv(1024))
+    try:
+        header, body = split_message(client_socket.recv(1024))
+    except ConnectionResetError:
+        print("Connection to teacher is not possible at the moment. Please check with your invigilator about this.")
+        return
     # logger.debug(header)
     question_count = get_q_num(header)
     number_of_questions = get_number_of_questions(header)

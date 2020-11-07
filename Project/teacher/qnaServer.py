@@ -9,23 +9,22 @@ import _thread
 
 HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
 PORT = 65433        # Port to listen on (non-privileged ports are > 1023)
+FILE_NAME = "questions.txt"
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("QNA-CLIENT")
 
 sockets_list = [] # change to append in run function
 answers = {}
-
 clients = []
+questions = []
 
-questions = [
-    "Which animal is a mammal? \n a) Platypus \n b) Duck \n c) Butterfly",
-    "Water boils at 317oC \n a) True \n b) False\n",
-    "Oil, natural gas and coal are examples of... \n a) Fossil Fuels \n Geothermal resources \n Renewable resources \n Biofuels \n",
-    "Which is not a group of organic compounds? \n a) Alkones \n b) Alkynes \n c) Alkenes \n d) Alkanes\n",
-    "Which is not made up of crystals? \n a) Feldspar \n b) Sugar \n c) Snow \n d) Glass\n",
-    "Which of these planets is second from the Sun and has no moon? \n a) Saturn \n b) Mars \n c) Venus \n d) Jupiter\n"
-]
+with open(FILE_NAME) as file:
+    line = file.readline()
+    while line:
+        questions.append(line)
+        line = file.readline()
+
 num_questions = len(questions)
 
 def split_message(byte_message):
