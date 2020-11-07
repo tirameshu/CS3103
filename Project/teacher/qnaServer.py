@@ -21,9 +21,11 @@ questions = []
 
 with open(FILE_NAME) as file:
     line = file.readline()
+    line = line.replace(r'\n', '\n')
     while line:
         questions.append(line)
         line = file.readline()
+        line = line.replace(r'\n', '\n')
 
 num_questions = len(questions)
 
