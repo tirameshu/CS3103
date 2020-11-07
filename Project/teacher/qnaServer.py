@@ -15,15 +15,23 @@ server_socket.bind((HOST, PORT))
 server_socket.listen()
 print("Listening for connections on {}: {}".format(HOST, PORT))
 
+FILE_NAME = "questions.txt"
+
 sockets_list = [server_socket]
 answers = {}
-
 clients = []
+questions = []
 
-questions = [
-    "Which animal is a mammal? \n a) Platypus \n b) Duck \n c) Butterfly",
-    "Water boils at 317oC \n a) True \n b) False\n"
-]
+with open(FILE_NAME) as file:
+    line = file.readline()
+    while line:
+        questions.append(line)
+        line = file.readline()
+
+# questions = [
+#     "Which animal is a mammal? \n a) Platypus \n b) Duck \n c) Butterfly",
+#     "Water boils at 317oC \n a) True \n b) False\n"
+# ]
 num_questions = len(questions)
 
 def split_message(byte_message):
