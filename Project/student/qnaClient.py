@@ -40,7 +40,7 @@ def run(name, id_num):
     try:
         header, body = split_message(client_socket.recv(1024))
     except ConnectionResetError:
-        print("Connection to teacher is not possible at the moment. Please check with your invigilator about this.")
+        logger.debug("Connection to teacher is not possible at the moment. Please check with your invigilator about this.")
         return
     # logger.debug(header)
     question_count = get_q_num(header)
