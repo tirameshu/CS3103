@@ -17,6 +17,9 @@
 # Feature Description
 
 ## QnA
+- Retrieves list of questions from `questions.txt` and sends questions in sequence to all clients connected to server
+- Client submits answers sequentially to server, and receive next question each time, until they arrive at the end of the quiz (end of the list of questions)
+- Server and client both keep track of the question number through header that includes information on: `client_id`, `message_type` and `question_number`
 
 ## Port Scanning
 - Runs `sudo lsof -i -P -n` on the command line and retrieves connections involving a `LISTEN` or `ESTABLISHED` port.
