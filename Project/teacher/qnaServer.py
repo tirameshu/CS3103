@@ -20,7 +20,11 @@ clients = []
 
 questions = [
     "Which animal is a mammal? \n a) Platypus \n b) Duck \n c) Butterfly",
-    "Water boils at 317oC \n a) True \n b) False\n"
+    "Water boils at 317oC \n a) True \n b) False\n",
+    "Oil, natural gas and coal are examples of... \n a) Fossil Fuels \n Geothermal resources \n Renewable resources \n Biofuels \n",
+    "Which is not a group of organic compounds? \n a) Alkones \n b) Alkynes \n c) Alkenes \n d) Alkanes\n",
+    "Which is not made up of crystals? \n a) Feldspar \n b) Sugar \n c) Snow \n d) Glass\n",
+    "Which of these planets is second from the Sun and has no moon? \n a) Saturn \n b) Mars \n c) Venus \n d) Jupiter\n"
 ]
 num_questions = len(questions)
 
@@ -90,26 +94,21 @@ def run():
                 # receive message and add to answers otherwise
                 header, body = split_message(message)
                 student_id, message_type, question_number = split_answer_header(header)
-                if student_id in answers:
+                if student_id in answers:   # add answers to array
                     answers[student_id].append(body)
                 else:   # handle first answers
                     answers[student_id] = [body]
                 logger.debug("Answer received: {}".format(body))
 
-                if question_number == num_questions:
+                if question_number == num_questions:    # upon receiving answer to last question, close connection
                     logger.debug("Closed connection from {}. Test completed.".format(student_id))
-                    logger.debug(answers[student_id])
+                    logger.debug("Student answers from {}: {}".format(student_id, answers[student_id]))
                     # notified_socket.close()
                     sockets_list.remove(notified_socket)
                     clients.remove(notified_socket)
                     continue
 
                 notified_socket.send(str.encode(create_header(student_id, question_number + 1) + print_question(question_number + 1)))
-            # broadcast to all connected clients
-            # modified_message = 
-            # for client_socket in clients:
-            #     logger.debug("Sending message FROM: {} TO: {} - {}".format(notified_socket, client_socket, message))
-            #     client_socket.send(message)
 
     # execute after exit from while loop
     for notified_socket in exception_sockets:
