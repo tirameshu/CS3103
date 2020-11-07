@@ -24,9 +24,11 @@ questions = []
 
 with open(FILE_NAME) as file:
     line = file.readline()
+    line = line.replace(r'\n', '\n')
     while line:
         questions.append(line)
         line = file.readline()
+        line = line.replace(r'\n', '\n')
 
 # questions = [
 #     "Which animal is a mammal? \n a) Platypus \n b) Duck \n c) Butterfly",
@@ -80,8 +82,6 @@ while True:
         # this means existing socket is sending a message
         else:
             message = receive_message(notified_socket)
-            print("MESSAGE")
-            print(message)
             if message is False:
                 print("Closed connection from: {}".format(notified_socket))
                 sockets_list.remove(notified_socket)

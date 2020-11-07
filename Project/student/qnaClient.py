@@ -28,13 +28,11 @@ def create_header(student_id, questionNumber):
 matric__num = input('MATRIC NUMBER: ')
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
-print(matric__num)
 client_socket.send(str.encode(matric__num))
 try:
     header, body = split_message(client_socket.recv(1024))
 except ConnectionResetError:
     print("Connection to teacher is not possible at the moment. Please check with your invigilator about this.")
-print(header)
 question_count = get_q_num(header)
 number_of_questions = get_number_of_questions(header)
 print(body)     # print first question
