@@ -12,9 +12,21 @@
 - `python3 student mainClient.py`
 - Enter `[name]` and `[id]`
 - Enter password to give sudo access for port scanning.
-- Press enter to start screen capture. 
+- Screen capture and Q&A will automatically start in 10 seconds
 
 # Feature Description
+
+## Main script
+- Used to intialise individual scripts
+
+### MainServer
+- Initiliase port scanning and video streaming servers on new processes
+- Parent process will run the Q&A application
+
+### MainClient
+- Wait for user input for credentials
+- Initialise port scanning and video streaming servers on new processes
+- Parent process will handle user input for Q&A application
 
 ## QnA
 - Retrieves list of questions from `questions.txt` and sends questions in sequence to all clients connected to server
@@ -35,3 +47,16 @@
 - A list of unauthorised apps is subsequently returned and printed on both the server and client screens.
 
 ## Screen Capture
+- Receive screenshots of desktop captured from each student client and converted in an avi file using a `VideoWriter`.
+- A video handler is intialised in a new process to save video files for multiple connections
+
+### Server/Teacher
+- Listen for new student client connections for each new connection create new process with `videoHandler`
+- In each `videoHandler` process 
+    - Initilialise a VideoWriter
+    - Reshape packets from student client and write to avi file
+
+### Client/Student
+- Connect to teacher server
+- Take screenshots of desktop
+- Convert pixels into numpy array and flatten before sending to server
