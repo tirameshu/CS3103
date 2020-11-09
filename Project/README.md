@@ -1,3 +1,7 @@
+# Requirements
+- Linux system, tested on Ubuntu 20.04 LTS
+- No external monitor, display resolution on main monitor is set to 1920x1080
+
 # Installations
 - `python3 -m venv venv`
 - `source venv/bin/activate`
